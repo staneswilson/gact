@@ -125,6 +125,65 @@ func Parse(path string, src []byte) (wf.Workflow, error) {
 	return decodeWorkflow(path, doc)
 }
 
+// ParsePartial decodes just enough of the workflow file to support
+// trigger-and-path-based selection: `name` and the full `on:` tree. The
+// returned Workflow has JobsByID == nil — that nil is the documented
+// sentinel for "partial parse, jobs deliberately skipped".
+//
+// The cost trade is intentional. On a repo with 30 workflows the selection
+// pass calls ParsePartial 30 times and Parse only on the small subset whose
+// triggers match the push event. Skipping the `jobs:` walk (steps,
+// expressions, uses-decoding) is what keeps cold start sub-second.
+//
+// Errors mirror Parse: a yaml.v3 syntax failure or a non-mapping root is
+// returned as *Error with a populated span.
+func ParsePartial(path string, src []byte) (wf.Workflow, error) {
+	var root yaml.Node
+	if err := yaml.Unmarshal(src, &root); err != nil {
+		line := extractYAMLErrorLine(err)
+		return wf.Workflow{}, &Error{
+			Message: err.Error(),
+			Span:    wf.SourceSpan{Path: path, Line: line, Column: 1, EndLine: line, EndCol: 1},
+			Cause:   err,
+		}
+	}
+	if root.Kind == 0 {
+		return wf.Workflow{Path: path}, &Error{
+			Message: "empty workflow document",
+			Span:    wf.SourceSpan{Path: path, Line: 1, Column: 1, EndLine: 1, EndCol: 1},
+		}
+	}
+	doc := unwrapDocument(&root)
+	if doc == nil {
+		return wf.Workflow{Path: path}, &Error{
+			Message: "empty workflow document",
+			Span:    wf.SourceSpan{Path: path, Line: 1, Column: 1, EndLine: 1, EndCol: 1},
+		}
+	}
+	if doc.Kind != yaml.MappingNode {
+		return wf.Workflow{Path: path}, newError(path, doc, "workflow root must be a mapping", nil)
+	}
+
+	w := wf.Workflow{
+		Path: path,
+		Span: span(path, doc),
+		// JobsByID is intentionally left nil. Callers check for nil to
+		// distinguish a partial-parse result from a fully-materialised
+		// workflow whose `jobs:` block legitimately has no entries.
+	}
+	if _, v, ok := findChild(doc, "name"); ok && v.Kind == yaml.ScalarNode {
+		w.Name = v.Value
+	}
+	if _, v, ok := findChild(doc, "on"); ok {
+		t, err := decodeTriggers(path, v)
+		if err != nil {
+			return wf.Workflow{}, err
+		}
+		w.Triggers = t
+	}
+	return w, nil
+}
+
 // unwrapDocument returns the single content node of a DocumentNode, or n
 // itself if it is already the document body. yaml.Unmarshal always
 // returns a DocumentNode wrapper, but defensive code is cheap and means
