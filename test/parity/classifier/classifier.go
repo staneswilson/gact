@@ -9,13 +9,11 @@
 //
 //  1. Block rules — anything that materially changes the observable outcome
 //     (exit code mismatch, missing output, missing/extra step, job verdict
-//     flip). A single block-rule hit is sufficient to classify. (Land in
-//     a later commit.)
+//     flip). A single block-rule hit is sufficient to classify.
 //  2. Noise rules — diffs that are demonstrably non-semantic: timestamps,
 //     runner identifiers, randomised ports, ANSI escapes, line endings,
 //     environment-dump key ordering.
-//  3. Warn rules — stdout text drift when exit codes match. (Land in a
-//     later commit.)
+//  3. Warn rules — stdout text drift when exit codes match.
 //  4. Default — Warn. The conservative middle: anything we cannot explain
 //     as noise and cannot prove is a block is reported to the human.
 //
