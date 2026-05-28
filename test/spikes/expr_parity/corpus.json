@@ -1,0 +1,391 @@
+[
+  {
+    "id": "lit-string-single",
+    "expr": "'hello'",
+    "context": {},
+    "expected": "hello",
+    "expected_kind": "string"
+  },
+  {
+    "id": "lit-string-empty",
+    "expr": "''",
+    "context": {},
+    "expected": "",
+    "expected_kind": "string"
+  },
+  {
+    "id": "lit-string-escaped-quote",
+    "expr": "'it''s ok'",
+    "context": {},
+    "expected": "it's ok",
+    "expected_kind": "string"
+  },
+  {
+    "id": "lit-number-int",
+    "expr": "42",
+    "context": {},
+    "expected": "42",
+    "expected_kind": "number"
+  },
+  {
+    "id": "lit-number-negative",
+    "expr": "-7",
+    "context": {},
+    "expected": "-7",
+    "expected_kind": "number"
+  },
+  {
+    "id": "lit-number-float",
+    "expr": "3.14",
+    "context": {},
+    "expected": "3.14",
+    "expected_kind": "number"
+  },
+  {
+    "id": "lit-bool-true",
+    "expr": "true",
+    "context": {},
+    "expected": "true",
+    "expected_kind": "boolean"
+  },
+  {
+    "id": "lit-bool-false",
+    "expr": "false",
+    "context": {},
+    "expected": "false",
+    "expected_kind": "boolean"
+  },
+  {
+    "id": "lit-null",
+    "expr": "null",
+    "context": {},
+    "expected": "",
+    "expected_kind": "null"
+  },
+  {
+    "id": "lookup-github-ref",
+    "expr": "github.ref",
+    "context": { "github": { "ref": "refs/heads/main" } },
+    "expected": "refs/heads/main",
+    "expected_kind": "string"
+  },
+  {
+    "id": "lookup-github-event-name",
+    "expr": "github.event_name",
+    "context": { "github": { "event_name": "push" } },
+    "expected": "push",
+    "expected_kind": "string"
+  },
+  {
+    "id": "lookup-runner-os",
+    "expr": "runner.os",
+    "context": { "runner": { "os": "Linux" } },
+    "expected": "Linux",
+    "expected_kind": "string"
+  },
+  {
+    "id": "lookup-matrix-os",
+    "expr": "matrix.os",
+    "context": { "matrix": { "os": "ubuntu-latest" } },
+    "expected": "ubuntu-latest",
+    "expected_kind": "string"
+  },
+  {
+    "id": "lookup-nested-pr-number",
+    "expr": "github.event.pull_request.number",
+    "context": { "github": { "event": { "pull_request": { "number": 42 } } } },
+    "expected": "42",
+    "expected_kind": "number"
+  },
+  {
+    "id": "lookup-bracket-string-index",
+    "expr": "github['ref']",
+    "context": { "github": { "ref": "refs/heads/main" } },
+    "expected": "refs/heads/main",
+    "expected_kind": "string"
+  },
+  {
+    "id": "lookup-missing-returns-null",
+    "expr": "github.event.pull_request.title",
+    "context": { "github": { "event": {} } },
+    "expected": "",
+    "expected_kind": "null",
+    "note": "GH returns null for missing nested properties — coerced to empty string in template"
+  },
+  {
+    "id": "cmp-eq-strings-true",
+    "expr": "github.ref == 'refs/heads/main'",
+    "context": { "github": { "ref": "refs/heads/main" } },
+    "expected": "true",
+    "expected_kind": "boolean"
+  },
+  {
+    "id": "cmp-eq-strings-false",
+    "expr": "github.ref == 'refs/heads/main'",
+    "context": { "github": { "ref": "refs/heads/dev" } },
+    "expected": "false",
+    "expected_kind": "boolean"
+  },
+  {
+    "id": "cmp-neq-strings",
+    "expr": "github.event_name != 'push'",
+    "context": { "github": { "event_name": "pull_request" } },
+    "expected": "true",
+    "expected_kind": "boolean"
+  },
+  {
+    "id": "cmp-eq-number-string-coerced",
+    "expr": "github.event.pull_request.number == 42",
+    "context": { "github": { "event": { "pull_request": { "number": 42 } } } },
+    "expected": "true",
+    "expected_kind": "boolean",
+    "note": "Number compared to number — straightforward"
+  },
+  {
+    "id": "cmp-eq-null-missing",
+    "expr": "github.event.pull_request == null",
+    "context": { "github": { "event": {} } },
+    "expected": "true",
+    "expected_kind": "boolean",
+    "note": "Missing property equals null"
+  },
+  {
+    "id": "bool-and-true",
+    "expr": "true && true",
+    "context": {},
+    "expected": "true",
+    "expected_kind": "boolean"
+  },
+  {
+    "id": "bool-or-false-true",
+    "expr": "false || true",
+    "context": {},
+    "expected": "true",
+    "expected_kind": "boolean"
+  },
+  {
+    "id": "bool-not-true",
+    "expr": "!true",
+    "context": {},
+    "expected": "false",
+    "expected_kind": "boolean"
+  },
+  {
+    "id": "bool-short-circuit-and",
+    "expr": "false && undefined.thing",
+    "context": {},
+    "expected": "false",
+    "expected_kind": "boolean",
+    "note": "Short-circuit: RHS never evaluated"
+  },
+  {
+    "id": "bool-short-circuit-or",
+    "expr": "true || undefined.thing",
+    "context": {},
+    "expected": "true",
+    "expected_kind": "boolean",
+    "note": "Short-circuit: RHS never evaluated"
+  },
+  {
+    "id": "bool-and-returns-value-gh-semantics",
+    "expr": "github.ref && 'fallback'",
+    "context": { "github": { "ref": "refs/heads/main" } },
+    "expected": "fallback",
+    "expected_kind": "string",
+    "note": "GH && returns RHS when LHS is truthy (like JS); LHS otherwise"
+  },
+  {
+    "id": "bool-or-default-pattern",
+    "expr": "matrix.timeout || 30",
+    "context": { "matrix": {} },
+    "expected": "30",
+    "expected_kind": "number",
+    "note": "Common default-value pattern in GH workflows"
+  },
+  {
+    "id": "fn-contains-string-true",
+    "expr": "contains('hello world', 'world')",
+    "context": {},
+    "expected": "true",
+    "expected_kind": "boolean"
+  },
+  {
+    "id": "fn-contains-string-false",
+    "expr": "contains('hello world', 'xyz')",
+    "context": {},
+    "expected": "false",
+    "expected_kind": "boolean"
+  },
+  {
+    "id": "fn-contains-ref-prefix",
+    "expr": "contains(github.ref, 'refs/heads/')",
+    "context": { "github": { "ref": "refs/heads/feature/x" } },
+    "expected": "true",
+    "expected_kind": "boolean"
+  },
+  {
+    "id": "fn-startsWith-true",
+    "expr": "startsWith(github.ref, 'refs/tags/')",
+    "context": { "github": { "ref": "refs/tags/v1.0.0" } },
+    "expected": "true",
+    "expected_kind": "boolean"
+  },
+  {
+    "id": "fn-startsWith-false",
+    "expr": "startsWith(github.ref, 'refs/tags/')",
+    "context": { "github": { "ref": "refs/heads/main" } },
+    "expected": "false",
+    "expected_kind": "boolean"
+  },
+  {
+    "id": "fn-endsWith-true",
+    "expr": "endsWith('release-v1.0.0', '.0.0')",
+    "context": {},
+    "expected": "true",
+    "expected_kind": "boolean"
+  },
+  {
+    "id": "fn-format-two-args",
+    "expr": "format('Hello, {0}!', 'world')",
+    "context": {},
+    "expected": "Hello, world!",
+    "expected_kind": "string"
+  },
+  {
+    "id": "fn-format-three-args",
+    "expr": "format('{0}-{1}-{2}', 'a', 'b', 'c')",
+    "context": {},
+    "expected": "a-b-c",
+    "expected_kind": "string"
+  },
+  {
+    "id": "fn-format-with-lookup",
+    "expr": "format('build-{0}-{1}', runner.os, github.ref)",
+    "context": { "runner": { "os": "Linux" }, "github": { "ref": "refs/heads/main" } },
+    "expected": "build-Linux-refs/heads/main",
+    "expected_kind": "string"
+  },
+  {
+    "id": "fn-join-default-sep",
+    "expr": "join(matrix.values)",
+    "context": { "matrix": { "values": ["a", "b", "c"] } },
+    "expected": "a,b,c",
+    "expected_kind": "string"
+  },
+  {
+    "id": "fn-join-custom-sep",
+    "expr": "join(matrix.values, '|')",
+    "context": { "matrix": { "values": ["x", "y", "z"] } },
+    "expected": "x|y|z",
+    "expected_kind": "string"
+  },
+  {
+    "id": "fn-toJSON-string",
+    "expr": "toJSON('hello')",
+    "context": {},
+    "expected": "\"hello\"",
+    "expected_kind": "string"
+  },
+  {
+    "id": "fn-toJSON-object",
+    "expr": "toJSON(matrix)",
+    "context": { "matrix": { "os": "linux", "node": 20 } },
+    "expected": "{\"node\":20,\"os\":\"linux\"}",
+    "expected_kind": "string",
+    "note": "Keys sorted for determinism"
+  },
+  {
+    "id": "fn-fromJSON-object",
+    "expr": "fromJSON('{\"x\":1}').x",
+    "context": {},
+    "expected": "1",
+    "expected_kind": "number"
+  },
+  {
+    "id": "fn-fromJSON-string-array-join",
+    "expr": "join(fromJSON('[\"a\",\"b\"]'), '-')",
+    "context": {},
+    "expected": "a-b",
+    "expected_kind": "string"
+  },
+  {
+    "id": "status-success-default",
+    "expr": "success()",
+    "context": { "status": "success" },
+    "expected": "true",
+    "expected_kind": "boolean"
+  },
+  {
+    "id": "status-success-when-failure",
+    "expr": "success()",
+    "context": { "status": "failure" },
+    "expected": "false",
+    "expected_kind": "boolean"
+  },
+  {
+    "id": "status-failure-when-failure",
+    "expr": "failure()",
+    "context": { "status": "failure" },
+    "expected": "true",
+    "expected_kind": "boolean"
+  },
+  {
+    "id": "status-always",
+    "expr": "always()",
+    "context": { "status": "cancelled" },
+    "expected": "true",
+    "expected_kind": "boolean"
+  },
+  {
+    "id": "status-cancelled-when-cancelled",
+    "expr": "cancelled()",
+    "context": { "status": "cancelled" },
+    "expected": "true",
+    "expected_kind": "boolean"
+  },
+  {
+    "id": "compound-success-and-main",
+    "expr": "success() && github.ref == 'refs/heads/main'",
+    "context": { "status": "success", "github": { "ref": "refs/heads/main" } },
+    "expected": "true",
+    "expected_kind": "boolean",
+    "source": "common deploy gate"
+  },
+  {
+    "id": "compound-tag-or-main-deploy",
+    "expr": "startsWith(github.ref, 'refs/tags/v') || (github.ref == 'refs/heads/main' && github.event_name == 'push')",
+    "context": { "github": { "ref": "refs/heads/main", "event_name": "push" } },
+    "expected": "true",
+    "expected_kind": "boolean",
+    "source": "common release/deploy condition"
+  },
+  {
+    "id": "compound-not-pr-and-main",
+    "expr": "github.event_name != 'pull_request' && github.ref == 'refs/heads/main'",
+    "context": { "github": { "event_name": "push", "ref": "refs/heads/main" } },
+    "expected": "true",
+    "expected_kind": "boolean"
+  },
+  {
+    "id": "compound-format-with-fromJSON",
+    "expr": "format('v{0}', fromJSON('{\"v\":\"1.2.3\"}').v)",
+    "context": {},
+    "expected": "v1.2.3",
+    "expected_kind": "string"
+  },
+  {
+    "id": "compound-contains-array-via-fromJSON",
+    "expr": "contains(fromJSON('[\"push\",\"pull_request\"]'), github.event_name)",
+    "context": { "github": { "event_name": "push" } },
+    "expected": "true",
+    "expected_kind": "boolean",
+    "note": "contains with array searches for membership"
+  },
+  {
+    "id": "compound-parens-precedence",
+    "expr": "(true || false) && false",
+    "context": {},
+    "expected": "false",
+    "expected_kind": "boolean"
+  }
+]
