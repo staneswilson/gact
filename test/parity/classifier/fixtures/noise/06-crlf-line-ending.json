@@ -1,0 +1,8 @@
+{
+  "name": "crlf-vs-lf-line-ending",
+  "comment": "Windows hosts produce CRLF line endings; Linux hosts produce LF. A diff that consists solely of a trailing \\r on one side is a line-ending mismatch and never semantic.",
+  "local":  "All checks passed\r",
+  "remote": "All checks passed",
+  "expected_category": "noise",
+  "expected_reason": "line-ending"
+}

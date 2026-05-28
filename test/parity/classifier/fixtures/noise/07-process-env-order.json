@@ -1,0 +1,8 @@
+{
+  "name": "process-env-key-order",
+  "comment": "`env` dumps from Node or Bash iterate the environment in insertion order on Linux and lexical-ish order on the GH runner image. The set of keys and values matches; only the line order differs. We model this as one line containing all key=value pairs separated by ';' and assert order-independent equality on the multiset.",
+  "local":  "FOO=1;BAR=2;BAZ=3",
+  "remote": "BAR=2;FOO=1;BAZ=3",
+  "expected_category": "noise",
+  "expected_reason": "env-order"
+}

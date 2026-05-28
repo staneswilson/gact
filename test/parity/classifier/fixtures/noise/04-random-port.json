@@ -1,0 +1,8 @@
+{
+  "name": "service-random-port",
+  "comment": "Service containers bind to a randomly-allocated host port published by Docker. Local Podman/Docker uses one number, GitHub uses another; both forward to the same container port.",
+  "local":  "postgres service is listening on 127.0.0.1:49213 -> 5432/tcp",
+  "remote": "postgres service is listening on 127.0.0.1:32774 -> 5432/tcp",
+  "expected_category": "noise",
+  "expected_reason": "random-port"
+}

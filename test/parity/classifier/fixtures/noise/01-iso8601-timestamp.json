@@ -1,0 +1,8 @@
+{
+  "name": "iso8601-timestamp-drift",
+  "comment": "GitHub Actions prefixes every log line with an ISO-8601 timestamp. Local and remote runs start at slightly different wall-clock times, so the timestamp differs even though the payload is identical.",
+  "local":  "2026-05-28T14:32:01.4567890Z ##[group]Run echo hello",
+  "remote": "2026-05-28T14:32:04.1234567Z ##[group]Run echo hello",
+  "expected_category": "noise",
+  "expected_reason": "iso8601-timestamp"
+}

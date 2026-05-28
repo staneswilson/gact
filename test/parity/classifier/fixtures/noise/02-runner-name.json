@@ -1,0 +1,8 @@
+{
+  "name": "runner-name-drift",
+  "comment": "RUNNER_NAME is assigned by GitHub from a pool (Hosted Agent N) and is set locally to the host name. The value is non-deterministic and never functionally meaningful.",
+  "local":  "RUNNER_NAME=my-laptop",
+  "remote": "RUNNER_NAME=GitHub Actions 17",
+  "expected_category": "noise",
+  "expected_reason": "runner-name"
+}

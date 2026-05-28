@@ -1,0 +1,8 @@
+{
+  "name": "runner-temp-path",
+  "comment": "RUNNER_TEMP, RUNNER_TOOL_CACHE and GITHUB_WORKSPACE all point to randomly-named scratch dirs. The trailing token differs every run.",
+  "local":  "RUNNER_TEMP=/tmp/runner.XQZA7H",
+  "remote": "RUNNER_TEMP=/home/runner/work/_temp",
+  "expected_category": "noise",
+  "expected_reason": "runner-temp"
+}
