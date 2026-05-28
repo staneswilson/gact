@@ -134,7 +134,7 @@ func TestEval_ShortCircuit_AND(t *testing.T) {
 }
 
 // TestEval_ShortCircuit_OR mirrors the AND case: truthy LHS returns
-// immediately; falsy LHS falls through to the RHS. The `'' || 30`
+// immediately; falsy LHS falls through to the RHS. The `” || 30`
 // case exercises the GH `value || default` idiom.
 func TestEval_ShortCircuit_OR(t *testing.T) {
 	ctx := EmptyContext()

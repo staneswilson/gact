@@ -52,13 +52,13 @@ type RunDefaults struct {
 // a non-nil Push pointer, while a workflow that does not list `push:` at all
 // leaves Push nil.
 type Triggers struct {
-	Push             *PushTrigger
-	PullRequest      *PullRequestTrigger
+	Push              *PushTrigger
+	PullRequest       *PullRequestTrigger
 	PullRequestTarget *PullRequestTrigger
-	Schedule         []ScheduleTrigger
-	WorkflowDispatch *WorkflowDispatchTrigger
-	WorkflowCall     *WorkflowCallTrigger
-	WorkflowRun      *WorkflowRunTrigger
+	Schedule          []ScheduleTrigger
+	WorkflowDispatch  *WorkflowDispatchTrigger
+	WorkflowCall      *WorkflowCallTrigger
+	WorkflowRun       *WorkflowRunTrigger
 	// Other       captures uncommon or future event names that have not been
 	// modelled as dedicated structs yet. Each entry is the event name as it
 	// appeared in YAML. Keeping a slice of names (rather than a map of opaque

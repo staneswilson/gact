@@ -40,118 +40,157 @@ func (e *evaluator) evaluate(c pubexpr.Context) (value, error) {
 	return walk(e.root, c)
 }
 
-// walk is the AST visitor. Each case handles one node kind. The split
-// between member-on-ident (a context lookup) and member-on-value
-// (a field navigation) is what makes `github.event.action` work without
-// the context implementation knowing about nested paths.
+// walk is the AST visitor. It dispatches on node kind to dedicated
+// per-kind helpers. The split between member-on-ident (a context lookup)
+// and member-on-value (a field navigation) — see walkMember — is what
+// makes `github.event.action` work without the context implementation
+// knowing about nested paths.
 func walk(n *node, c pubexpr.Context) (value, error) {
+	if v, ok := walkAtom(n); ok {
+		return v, nil
+	}
 	switch n.Kind {
-	case nString:
-		return stringValue(n.Str), nil
-	case nNumber:
-		return numberValue(n.Num), nil
-	case nBool:
-		return boolValue(n.Bool), nil
-	case nNull:
-		return nullValue(), nil
-	case nIdent:
-		// A bare identifier at the root is treated as a request for
-		// scope.<missing-key> = Null. GH expressions usually pair
-		// identifiers with a .field, but `${{ github }}` alone yields
-		// the empty string in templates, which Null serialises to.
-		return nullValue(), nil
 	case nMember:
-		// If the parent is an identifier, this is a context lookup:
-		// scope=ident.Str, key=this.Str.
-		child := n.Children[0]
-		if child.Kind == nIdent {
-			v, err := c.Get(child.Str, n.Str)
-			if err != nil {
-				return value{}, err
-			}
-			return v, nil
-		}
-		base, err := walk(child, c)
-		if err != nil {
-			return value{}, err
-		}
-		return lookupField(base, n.Str), nil
+		return walkMember(n, c)
 	case nIndex:
-		base, err := walk(n.Children[0], c)
-		if err != nil {
-			return value{}, err
-		}
-		idx, err := walk(n.Children[1], c)
-		if err != nil {
-			return value{}, err
-		}
-		return lookupIndex(base, idx), nil
+		return walkIndex(n, c)
 	case nNot:
-		v, err := walk(n.Children[0], c)
-		if err != nil {
-			return value{}, err
-		}
-		return boolValue(!v.IsTruthy()), nil
+		return walkNot(n, c)
 	case nAnd:
-		// GH's && returns the LHS unchanged when falsy (short-circuit),
-		// the RHS unchanged when LHS is truthy. This is what enables
-		// the `truthy && replacement` pattern (uncommon) and lets
-		// `false && undefined.thing` succeed without evaluating RHS.
-		left, err := walk(n.Children[0], c)
-		if err != nil {
-			return value{}, err
-		}
-		if !left.IsTruthy() {
-			return left, nil
-		}
-		return walk(n.Children[1], c)
+		return walkAnd(n, c)
 	case nOr:
-		// GH's || returns the LHS unchanged when truthy, the RHS
-		// unchanged when LHS is falsy. The default-value idiom
-		// `matrix.timeout || 30` relies on RHS being returned as-is —
-		// not coerced to a bool.
-		left, err := walk(n.Children[0], c)
-		if err != nil {
-			return value{}, err
-		}
-		if left.IsTruthy() {
-			return left, nil
-		}
-		return walk(n.Children[1], c)
-	case nEq:
-		l, err := walk(n.Children[0], c)
-		if err != nil {
-			return value{}, err
-		}
-		r, err := walk(n.Children[1], c)
-		if err != nil {
-			return value{}, err
-		}
-		return boolValue(l.Equal(r)), nil
-	case nNeq:
-		l, err := walk(n.Children[0], c)
-		if err != nil {
-			return value{}, err
-		}
-		r, err := walk(n.Children[1], c)
-		if err != nil {
-			return value{}, err
-		}
-		return boolValue(!l.Equal(r)), nil
+		return walkOr(n, c)
+	case nEq, nNeq:
+		return walkEquality(n, c)
 	case nLt, nLte, nGt, nGte:
 		return walkRelational(n, c)
 	case nCall:
-		args := make([]value, len(n.Children))
-		for i, a := range n.Children {
-			v, err := walk(a, c)
-			if err != nil {
-				return value{}, err
-			}
-			args[i] = v
-		}
-		return callFunction(n.Str, args)
+		return walkCall(n, c)
 	}
 	return value{}, fmt.Errorf("eval: unknown node kind %d", n.Kind)
+}
+
+// walkAtom handles AST nodes whose value depends only on the node itself,
+// not on the evaluation context. A bare identifier at the root surfaces as
+// Null because GH expressions usually pair identifiers with a `.field`;
+// `${{ github }}` alone yields the empty string in templates, which Null
+// serialises to.
+func walkAtom(n *node) (value, bool) {
+	switch n.Kind {
+	case nString:
+		return stringValue(n.Str), true
+	case nNumber:
+		return numberValue(n.Num), true
+	case nBool:
+		return boolValue(n.Bool), true
+	case nNull, nIdent:
+		return nullValue(), true
+	}
+	return value{}, false
+}
+
+// walkMember handles `.field` access. If the LHS is a bare identifier we
+// route to the context's Get(scope, key) hook; otherwise we walk the LHS
+// to a value and read the field off it.
+func walkMember(n *node, c pubexpr.Context) (value, error) {
+	child := n.Children[0]
+	if child.Kind == nIdent {
+		v, err := c.Get(child.Str, n.Str)
+		if err != nil {
+			return value{}, err
+		}
+		return v, nil
+	}
+	base, err := walk(child, c)
+	if err != nil {
+		return value{}, err
+	}
+	return lookupField(base, n.Str), nil
+}
+
+// walkIndex handles `[...]` access on arrays (numeric index) and objects
+// (string key). Out-of-range indices and missing keys yield Null.
+func walkIndex(n *node, c pubexpr.Context) (value, error) {
+	base, err := walk(n.Children[0], c)
+	if err != nil {
+		return value{}, err
+	}
+	idx, err := walk(n.Children[1], c)
+	if err != nil {
+		return value{}, err
+	}
+	return lookupIndex(base, idx), nil
+}
+
+// walkNot evaluates `!expr` using GH's truthiness rules.
+func walkNot(n *node, c pubexpr.Context) (value, error) {
+	v, err := walk(n.Children[0], c)
+	if err != nil {
+		return value{}, err
+	}
+	return boolValue(!v.IsTruthy()), nil
+}
+
+// walkAnd implements GH's `&&` short-circuit: returns the LHS unchanged
+// when it is falsy, otherwise evaluates and returns the RHS. The unchanged
+// LHS lets `false && undefined.thing` succeed without evaluating the RHS.
+func walkAnd(n *node, c pubexpr.Context) (value, error) {
+	left, err := walk(n.Children[0], c)
+	if err != nil {
+		return value{}, err
+	}
+	if !left.IsTruthy() {
+		return left, nil
+	}
+	return walk(n.Children[1], c)
+}
+
+// walkOr implements GH's `||` short-circuit: returns the LHS unchanged
+// when it is truthy, otherwise evaluates and returns the RHS. The
+// default-value idiom `matrix.timeout || 30` relies on the RHS being
+// returned as-is — not coerced to a bool.
+func walkOr(n *node, c pubexpr.Context) (value, error) {
+	left, err := walk(n.Children[0], c)
+	if err != nil {
+		return value{}, err
+	}
+	if left.IsTruthy() {
+		return left, nil
+	}
+	return walk(n.Children[1], c)
+}
+
+// walkEquality evaluates `==` and `!=`. Equality semantics live in
+// value.Equal — this helper only wires up evaluation of both sides and
+// inverts the result for `!=`.
+func walkEquality(n *node, c pubexpr.Context) (value, error) {
+	l, err := walk(n.Children[0], c)
+	if err != nil {
+		return value{}, err
+	}
+	r, err := walk(n.Children[1], c)
+	if err != nil {
+		return value{}, err
+	}
+	eq := l.Equal(r)
+	if n.Kind == nNeq {
+		eq = !eq
+	}
+	return boolValue(eq), nil
+}
+
+// walkCall evaluates every argument and dispatches to the function
+// registry by name.
+func walkCall(n *node, c pubexpr.Context) (value, error) {
+	args := make([]value, len(n.Children))
+	for i, a := range n.Children {
+		v, err := walk(a, c)
+		if err != nil {
+			return value{}, err
+		}
+		args[i] = v
+	}
+	return callFunction(n.Str, args)
 }
 
 // walkRelational evaluates <, <=, >, >= by coercing both sides to

@@ -6,7 +6,7 @@
 //
 // Files in this package:
 //   - value.go    Value helpers (truthiness etc. live on pkg/expr.Value;
-//                 here we only host fromAny and a few constructors)
+//     here we only host fromAny and a few constructors)
 //   - lexer.go    hand-rolled tokenizer
 //   - parser.go   recursive-descent parser producing a *node AST
 //   - eval.go     AST walker (Evaluator's evalFn is its method)
@@ -34,21 +34,17 @@ const (
 	kindObject = pubexpr.KindObject
 )
 
-// Aliases for the most commonly used public types so the internal code
+// Alias for the most commonly used public type so the internal code
 // reads naturally without the pubexpr.<X> prefix at every site.
-type (
-	value = pubexpr.Value
-	ctx   = pubexpr.Context
-	kind  = pubexpr.Kind
-)
+type value = pubexpr.Value
 
 // Value constructors used by the evaluator and tests. The fmt of each
 // matches the (Kind, Data) contract documented in pkg/expr.
-func nullValue() value             { return value{Kind: kindNull} }
-func boolValue(b bool) value       { return value{Kind: kindBool, Data: b} }
-func numberValue(n float64) value  { return value{Kind: kindNumber, Data: n} }
-func stringValue(s string) value   { return value{Kind: kindString, Data: s} }
-func arrayValue(a []any) value     { return value{Kind: kindArray, Data: a} }
+func nullValue() value            { return value{Kind: kindNull} }
+func boolValue(b bool) value      { return value{Kind: kindBool, Data: b} }
+func numberValue(n float64) value { return value{Kind: kindNumber, Data: n} }
+func stringValue(s string) value  { return value{Kind: kindString, Data: s} }
+func arrayValue(a []any) value    { return value{Kind: kindArray, Data: a} }
 func objectValue(m map[string]any) value {
 	return value{Kind: kindObject, Data: m}
 }

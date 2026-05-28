@@ -157,6 +157,14 @@ func TestWorkflow_DeepCopyIsValueSafe(t *testing.T) {
 	copyJob.Name = "build-mutated"
 	copyJob.Needs = append([]wf.JobID(nil), copyJob.Needs...)
 	copyJob.Needs[0] = "different"
+	// Assert the local copy reflects its mutations so the writes above are
+	// observed by the test rather than dead-store-eliminated by the compiler.
+	if copyJob.Name != "build-mutated" {
+		t.Fatalf("copyJob.Name = %q, want %q", copyJob.Name, "build-mutated")
+	}
+	if copyJob.Needs[0] != "different" {
+		t.Fatalf("copyJob.Needs[0] = %q, want %q", copyJob.Needs[0], "different")
+	}
 
 	// Original must be untouched.
 	if original.Name != "ci" {

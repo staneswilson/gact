@@ -101,4 +101,3 @@ func findChild(n *yaml.Node, key string) (k, v *yaml.Node, ok bool) {
 	}
 	return nil, nil, false
 }
-

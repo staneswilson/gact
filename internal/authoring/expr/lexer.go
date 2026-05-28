@@ -44,6 +44,26 @@ type token struct {
 	Pos  int
 }
 
+// punctKinds maps single-character punctuation to its token kind. Lookups
+// are O(1) and the table keeps the per-byte branch out of the main lexer
+// loop.
+var punctKinds = map[byte]tokenKind{
+	'.': tkDot,
+	'[': tkLBracket,
+	']': tkRBracket,
+	'(': tkLParen,
+	')': tkRParen,
+	',': tkComma,
+}
+
+// singleOpKinds maps single-character operators (used when no two-character
+// form matches). `==`, `!=`, `<=`, `>=`, `&&`, `||` are handled separately.
+var singleOpKinds = map[byte]tokenKind{
+	'<': tkLt,
+	'>': tkGt,
+	'!': tkBang,
+}
+
 // lex converts src into a flat slice of tokens terminated by tkEOF.
 // We tokenise once up front so the parser is a straight slice walk —
 // the simpler shape pays off when the parser needs to look at multiple
@@ -52,91 +72,105 @@ func lex(src string) ([]token, error) {
 	var out []token
 	i := 0
 	for i < len(src) {
-		c := src[i]
-		switch {
-		case c == ' ' || c == '\t' || c == '\n' || c == '\r':
+		if isSpace(src[i]) {
 			i++
-		case c == '\'':
-			s, n, err := readString(src, i)
-			if err != nil {
-				return nil, err
-			}
-			out = append(out, token{Kind: tkString, Val: s, Pos: i})
-			i += n
-		case c == '.':
-			out = append(out, token{Kind: tkDot, Val: ".", Pos: i})
-			i++
-		case c == '[':
-			out = append(out, token{Kind: tkLBracket, Val: "[", Pos: i})
-			i++
-		case c == ']':
-			out = append(out, token{Kind: tkRBracket, Val: "]", Pos: i})
-			i++
-		case c == '(':
-			out = append(out, token{Kind: tkLParen, Val: "(", Pos: i})
-			i++
-		case c == ')':
-			out = append(out, token{Kind: tkRParen, Val: ")", Pos: i})
-			i++
-		case c == ',':
-			out = append(out, token{Kind: tkComma, Val: ",", Pos: i})
-			i++
-		case c == '=' && i+1 < len(src) && src[i+1] == '=':
-			out = append(out, token{Kind: tkEq, Val: "==", Pos: i})
-			i += 2
-		case c == '!' && i+1 < len(src) && src[i+1] == '=':
-			out = append(out, token{Kind: tkNeq, Val: "!=", Pos: i})
-			i += 2
-		case c == '<' && i+1 < len(src) && src[i+1] == '=':
-			out = append(out, token{Kind: tkLte, Val: "<=", Pos: i})
-			i += 2
-		case c == '>' && i+1 < len(src) && src[i+1] == '=':
-			out = append(out, token{Kind: tkGte, Val: ">=", Pos: i})
-			i += 2
-		case c == '<':
-			out = append(out, token{Kind: tkLt, Val: "<", Pos: i})
-			i++
-		case c == '>':
-			out = append(out, token{Kind: tkGt, Val: ">", Pos: i})
-			i++
-		case c == '&' && i+1 < len(src) && src[i+1] == '&':
-			out = append(out, token{Kind: tkAnd, Val: "&&", Pos: i})
-			i += 2
-		case c == '|' && i+1 < len(src) && src[i+1] == '|':
-			out = append(out, token{Kind: tkOr, Val: "||", Pos: i})
-			i += 2
-		case c == '!':
-			out = append(out, token{Kind: tkBang, Val: "!", Pos: i})
-			i++
-		case c == '-' || (c >= '0' && c <= '9'):
-			s, n := readNumber(src, i)
-			out = append(out, token{Kind: tkNumber, Val: s, Pos: i})
-			i += n
-		case isIdentStart(c):
-			s, n := readIdent(src, i)
-			tk := token{Val: s, Pos: i}
-			switch strings.ToLower(s) {
-			case "true":
-				tk.Kind = tkTrue
-			case "false":
-				tk.Kind = tkFalse
-			case "null":
-				tk.Kind = tkNull
-			default:
-				tk.Kind = tkIdent
-			}
-			out = append(out, tk)
-			i += n
-		default:
-			return nil, fmt.Errorf("lex: unexpected character %q at pos %d", c, i)
+			continue
 		}
+		tok, n, err := nextToken(src, i)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, tok)
+		i += n
 	}
 	out = append(out, token{Kind: tkEOF, Pos: len(src)})
 	return out, nil
 }
 
+func isSpace(c byte) bool {
+	return c == ' ' || c == '\t' || c == '\n' || c == '\r'
+}
+
+// nextToken consumes the single token that starts at src[i] and returns it
+// together with the number of bytes consumed.
+func nextToken(src string, i int) (token, int, error) {
+	c := src[i]
+	if c == '\'' {
+		s, n, err := readString(src, i)
+		if err != nil {
+			return token{}, 0, err
+		}
+		return token{Kind: tkString, Val: s, Pos: i}, n, nil
+	}
+	if k, ok := punctKinds[c]; ok {
+		return token{Kind: k, Val: string(c), Pos: i}, 1, nil
+	}
+	if tok, n, ok := lexCompoundOp(src, i); ok {
+		return tok, n, nil
+	}
+	if k, ok := singleOpKinds[c]; ok {
+		return token{Kind: k, Val: string(c), Pos: i}, 1, nil
+	}
+	if isNumberStart(c) {
+		s, n := readNumber(src, i)
+		return token{Kind: tkNumber, Val: s, Pos: i}, n, nil
+	}
+	if isIdentStart(c) {
+		s, n := readIdent(src, i)
+		return identToken(s, i), n, nil
+	}
+	return token{}, 0, fmt.Errorf("lex: unexpected character %q at pos %d", c, i)
+}
+
+func isNumberStart(c byte) bool {
+	return c == '-' || (c >= '0' && c <= '9')
+}
+
+// lexCompoundOp returns the two-character operator starting at src[i] when
+// one matches. The boolean third return value distinguishes "matched" from
+// "no compound operator here" so callers can fall through to single-char
+// operator handling.
+func lexCompoundOp(src string, i int) (token, int, bool) {
+	if i+1 >= len(src) {
+		return token{}, 0, false
+	}
+	pair := src[i : i+2]
+	kind, ok := compoundOpKinds[pair]
+	if !ok {
+		return token{}, 0, false
+	}
+	return token{Kind: kind, Val: pair, Pos: i}, 2, true
+}
+
+var compoundOpKinds = map[string]tokenKind{
+	"==": tkEq,
+	"!=": tkNeq,
+	"<=": tkLte,
+	">=": tkGte,
+	"&&": tkAnd,
+	"||": tkOr,
+}
+
+// identToken turns an identifier lexeme into a token, classifying the
+// reserved words true / false / null as their dedicated kinds and everything
+// else as tkIdent.
+func identToken(s string, pos int) token {
+	tk := token{Val: s, Pos: pos}
+	switch strings.ToLower(s) {
+	case "true":
+		tk.Kind = tkTrue
+	case "false":
+		tk.Kind = tkFalse
+	case "null":
+		tk.Kind = tkNull
+	default:
+		tk.Kind = tkIdent
+	}
+	return tk
+}
+
 // readString consumes a single-quoted string. GH escapes the quote by
-// doubling it: 'it''s' represents the three-character string "it's".
+// doubling it: 'it”s' represents the three-character string "it's".
 // This is the only escape the GH expression grammar recognises — no
 // backslash escapes, no unicode escapes.
 func readString(src string, start int) (string, int, error) {

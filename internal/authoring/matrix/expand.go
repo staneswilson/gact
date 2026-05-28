@@ -14,15 +14,15 @@
 //     NOT prune combinations contributed by Include.
 //  3. Apply Include. For each include row, in order:
 //     a. The include EXTENDS every surviving combination whose original
-//        axis values are not overwritten by the include's keys (i.e. for
-//        each axis-named key in the include, the combo either lacks that
-//        key, or the value matches). Original axis values are never
-//        overwritten; values added by a prior include may be overwritten.
+//     axis values are not overwritten by the include's keys (i.e. for
+//     each axis-named key in the include, the combo either lacks that
+//     key, or the value matches). Original axis values are never
+//     overwritten; values added by a prior include may be overwritten.
 //     b. If the include extends at least one combination, it does NOT also
-//        produce a standalone row.
+//     produce a standalone row.
 //     c. If the include extends nothing (because at least one of its axis
-//        keys would overwrite every combination), it is APPENDED as a new
-//        standalone combination.
+//     keys would overwrite every combination), it is APPENDED as a new
+//     standalone combination.
 //
 // The behaviour above is anchored in GitHub's official documentation:
 // https://docs.github.com/en/actions/using-jobs/using-a-matrix-for-your-jobs
@@ -283,4 +283,3 @@ func toCombinationList(combos []combo) []Combination {
 	}
 	return out
 }
-

@@ -164,44 +164,28 @@ func (s *staticContext) Get(scope, key string) (value, error) {
 // pulled from StaticInputs; everything else is Null. The full GH context
 // has many more fields (event_path, run_id, …) — the ones modelled here
 // are those whose values are knowable at static-analysis time.
+//
+// We dispatch via a per-call table keyed by the scope's identifier so the
+// per-key "empty → null, else string" pattern is expressed once. Two
+// identifiers ("event" and "event_name") share the Event source: "event"
+// matches the simplified form from the design spec, "event_name" mirrors
+// the GH-documented identifier. The full event payload (the GH "event"
+// object proper) is not modelled here.
 func (s *staticContext) getGithub(key string) value {
-	switch key {
-	case "event", "event_name":
-		// "event" matches the simplified form documented in the design
-		// spec; "event_name" mirrors the GH-documented identifier so
-		// existing workflows lint correctly. The full event payload
-		// (the GH "event" object proper) is not modelled here.
-		if s.in.Event == "" {
-			return nullValue()
-		}
-		return stringValue(s.in.Event)
-	case "ref":
-		if s.in.Ref == "" {
-			return nullValue()
-		}
-		return stringValue(s.in.Ref)
-	case "sha":
-		if s.in.SHA == "" {
-			return nullValue()
-		}
-		return stringValue(s.in.SHA)
-	case "repository":
-		if s.in.Repository == "" {
-			return nullValue()
-		}
-		return stringValue(s.in.Repository)
-	case "actor":
-		if s.in.Actor == "" {
-			return nullValue()
-		}
-		return stringValue(s.in.Actor)
-	case "workspace":
-		if s.in.Workspace == "" {
-			return nullValue()
-		}
-		return stringValue(s.in.Workspace)
+	fields := map[string]string{
+		"event":      s.in.Event,
+		"event_name": s.in.Event,
+		"ref":        s.in.Ref,
+		"sha":        s.in.SHA,
+		"repository": s.in.Repository,
+		"actor":      s.in.Actor,
+		"workspace":  s.in.Workspace,
 	}
-	return nullValue()
+	v, ok := fields[key]
+	if !ok || v == "" {
+		return nullValue()
+	}
+	return stringValue(v)
 }
 
 // getRunner returns fields of the runner.* scope. os/arch reflect the
@@ -260,7 +244,7 @@ func (s *staticContext) getVars(key string) value {
 // getSecret returns the opaque sentinel "<secrets.NAME>" if NAME is in
 // the allowlist; otherwise Null. Returning a real string (instead of,
 // say, a synthetic Kind) keeps the sentinel comparable: the common
-// `${{ secrets.FOO != '' }}` guard then type-checks AND evaluates to
+// `${{ secrets.FOO != ” }}` guard then type-checks AND evaluates to
 // true at lint time, which is the safer assumption for a strict gate.
 //
 // Real secret values NEVER appear here. They live in the keyring

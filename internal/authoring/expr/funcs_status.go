@@ -4,10 +4,10 @@
 // the surrounding job/step state:
 //
 //   - success()   true when no previous step in the job has failed and
-//                 no needed job's outcome is `failure` / `cancelled`.
+//     no needed job's outcome is `failure` / `cancelled`.
 //   - failure()   true when any previous step or needed job has failed.
 //   - always()    true unconditionally — used to force a step to run
-//                 even on cancel/failure.
+//     even on cancel/failure.
 //   - cancelled() true when the workflow was cancelled.
 //
 // The current funcImpl signature (args []value) -> (value, error) gives us
@@ -17,7 +17,7 @@
 //
 //   - always()    -> true   (final, identical to runtime)
 //   - success()   -> true   (optimistic default; the scheduler will
-//                            override this once it has a job/step ctx)
+//     override this once it has a job/step ctx)
 //   - failure()   -> false  (optimistic default; scheduler overrides)
 //   - cancelled() -> false  (scheduler overrides)
 //

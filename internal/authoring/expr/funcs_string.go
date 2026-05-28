@@ -93,47 +93,67 @@ func formatFunc(args []value) (value, error) {
 
 	i := 0
 	for i < len(template) {
-		c := template[i]
-		switch c {
-		case '{':
-			// '{{' escapes a literal '{'. Any other '{' starts a {N} ref.
-			if i+1 < len(template) && template[i+1] == '{' {
-				out.WriteByte('{')
-				i += 2
-				continue
-			}
-			// Find the matching '}' and parse the index.
-			end := strings.IndexByte(template[i+1:], '}')
-			if end < 0 {
-				return value{}, fmt.Errorf("format: unmatched '{' at position %d", i)
-			}
-			idxStr := template[i+1 : i+1+end]
-			if idxStr == "" {
-				return value{}, fmt.Errorf("format: empty placeholder at position %d", i)
-			}
-			idx, err := parseFormatIndex(idxStr)
-			if err != nil {
-				return value{}, fmt.Errorf("format: invalid placeholder %q at position %d: %w", "{"+idxStr+"}", i, err)
-			}
-			if idx < 0 || idx >= len(params) {
-				return value{}, fmt.Errorf("format: placeholder {%d} out of range (have %d args)", idx, len(params))
-			}
-			out.WriteString(params[idx].AsString())
-			i += 2 + end // step past '{', idxStr, '}'
-		case '}':
-			// A lone '}' is only legal as '}}'.
-			if i+1 < len(template) && template[i+1] == '}' {
-				out.WriteByte('}')
-				i += 2
-				continue
-			}
-			return value{}, fmt.Errorf("format: unmatched '}' at position %d", i)
-		default:
-			out.WriteByte(c)
-			i++
+		n, err := formatStep(template, i, params, &out)
+		if err != nil {
+			return value{}, err
 		}
+		i += n
 	}
 	return stringValue(out.String()), nil
+}
+
+// formatStep advances one logical unit through the template — either a
+// literal character, an escaped brace, or a {N} placeholder — and returns
+// the number of bytes consumed. Splitting this out keeps formatFunc itself
+// below the gocyclo threshold without changing observable behaviour.
+func formatStep(template string, i int, params []value, out *strings.Builder) (int, error) {
+	c := template[i]
+	switch c {
+	case '{':
+		if isEscapedBrace(template, i, '{') {
+			out.WriteByte('{')
+			return 2, nil
+		}
+		return formatPlaceholder(template, i, params, out)
+	case '}':
+		if !isEscapedBrace(template, i, '}') {
+			return 0, fmt.Errorf("format: unmatched '}' at position %d", i)
+		}
+		out.WriteByte('}')
+		return 2, nil
+	}
+	out.WriteByte(c)
+	return 1, nil
+}
+
+// isEscapedBrace reports whether template[i] starts a `{{` or `}}` escape.
+// The brace argument selects which doubled character we're looking for.
+func isEscapedBrace(template string, i int, brace byte) bool {
+	return i+1 < len(template) && template[i+1] == brace
+}
+
+// formatPlaceholder parses a `{N}` placeholder beginning at template[i]
+// (where template[i] == '{' and it is *not* an escaped brace), writes the
+// resolved parameter to out, and returns the number of bytes consumed
+// (including the braces and the index digits).
+func formatPlaceholder(template string, i int, params []value, out *strings.Builder) (int, error) {
+	end := strings.IndexByte(template[i+1:], '}')
+	if end < 0 {
+		return 0, fmt.Errorf("format: unmatched '{' at position %d", i)
+	}
+	idxStr := template[i+1 : i+1+end]
+	if idxStr == "" {
+		return 0, fmt.Errorf("format: empty placeholder at position %d", i)
+	}
+	idx, err := parseFormatIndex(idxStr)
+	if err != nil {
+		return 0, fmt.Errorf("format: invalid placeholder %q at position %d: %w", "{"+idxStr+"}", i, err)
+	}
+	if idx < 0 || idx >= len(params) {
+		return 0, fmt.Errorf("format: placeholder {%d} out of range (have %d args)", idx, len(params))
+	}
+	out.WriteString(params[idx].AsString())
+	return 2 + end, nil
 }
 
 // parseFormatIndex parses a non-negative integer placeholder. We do this

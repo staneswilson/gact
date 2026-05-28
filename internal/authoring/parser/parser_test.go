@@ -16,6 +16,7 @@ package parser
 
 import (
 	"encoding/json"
+	"errors"
 	"flag"
 	"os"
 	"path/filepath"
@@ -83,8 +84,8 @@ func TestParser_Golden(t *testing.T) {
 			}
 			goldenPath := strings.TrimSuffix(fixture, ".yml") + ".golden.json"
 			if shouldUpdate() {
-				if err := os.WriteFile(goldenPath, got, 0o644); err != nil {
-					t.Fatalf("write golden %s: %v", goldenPath, err)
+				if writeErr := os.WriteFile(goldenPath, got, 0o644); writeErr != nil {
+					t.Fatalf("write golden %s: %v", goldenPath, writeErr)
 				}
 				return
 			}
@@ -123,8 +124,8 @@ func TestParser_Malformed_TabIndent(t *testing.T) {
 	if parseErr == nil {
 		t.Fatalf("expected error, got nil")
 	}
-	pe, ok := parseErr.(*Error)
-	if !ok {
+	var pe *Error
+	if !errors.As(parseErr, &pe) {
 		t.Fatalf("expected *parser.Error, got %T: %v", parseErr, parseErr)
 	}
 	if pe.Span.Path == "" {
@@ -147,8 +148,8 @@ func TestParser_Malformed_TopLevelSequence(t *testing.T) {
 	if parseErr == nil {
 		t.Fatalf("expected error, got nil")
 	}
-	pe, ok := parseErr.(*Error)
-	if !ok {
+	var pe *Error
+	if !errors.As(parseErr, &pe) {
 		t.Fatalf("expected *parser.Error, got %T: %v", parseErr, parseErr)
 	}
 	if !strings.Contains(pe.Message, "mapping") {
@@ -166,13 +167,13 @@ func TestParser_Malformed_TopLevelSequence(t *testing.T) {
 // consumers should marshal pkg/workflow values directly via their own
 // shape if they need JSON.
 type jsonWorkflow struct {
-	Name     string                   `json:"name"`
-	Path     string                   `json:"path"`
-	Triggers jsonTriggers             `json:"triggers"`
-	Env      map[string]string        `json:"env,omitempty"`
-	Defaults wf.Defaults              `json:"defaults"`
-	Jobs     []jsonJob                `json:"jobs"`
-	Span     wf.SourceSpan            `json:"span"`
+	Name     string            `json:"name"`
+	Path     string            `json:"path"`
+	Triggers jsonTriggers      `json:"triggers"`
+	Env      map[string]string `json:"env,omitempty"`
+	Defaults wf.Defaults       `json:"defaults"`
+	Jobs     []jsonJob         `json:"jobs"`
+	Span     wf.SourceSpan     `json:"span"`
 }
 
 type jsonTriggers struct {
@@ -187,19 +188,19 @@ type jsonTriggers struct {
 }
 
 type jsonJob struct {
-	ID              string                    `json:"id"`
-	Name            string                    `json:"name,omitempty"`
-	RunsOn          wf.RunnerLabel            `json:"runs_on"`
-	Needs           []wf.JobID                `json:"needs,omitempty"`
-	If              wf.Expression             `json:"if"`
-	Matrix          *wf.Matrix                `json:"matrix,omitempty"`
-	Env             map[string]string         `json:"env,omitempty"`
-	Defaults        wf.Defaults               `json:"defaults"`
-	ContinueOnError bool                      `json:"continue_on_error"`
-	TimeoutMinutes  int                       `json:"timeout_minutes"`
-	Outputs         map[string]wf.Expression  `json:"outputs,omitempty"`
-	Steps           []wf.Step                 `json:"steps,omitempty"`
-	Span            wf.SourceSpan             `json:"span"`
+	ID              string                   `json:"id"`
+	Name            string                   `json:"name,omitempty"`
+	RunsOn          wf.RunnerLabel           `json:"runs_on"`
+	Needs           []wf.JobID               `json:"needs,omitempty"`
+	If              wf.Expression            `json:"if"`
+	Matrix          *wf.Matrix               `json:"matrix,omitempty"`
+	Env             map[string]string        `json:"env,omitempty"`
+	Defaults        wf.Defaults              `json:"defaults"`
+	ContinueOnError bool                     `json:"continue_on_error"`
+	TimeoutMinutes  int                      `json:"timeout_minutes"`
+	Outputs         map[string]wf.Expression `json:"outputs,omitempty"`
+	Steps           []wf.Step                `json:"steps,omitempty"`
+	Span            wf.SourceSpan            `json:"span"`
 }
 
 // marshalWorkflow produces the JSON form used for golden comparisons.

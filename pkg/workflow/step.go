@@ -46,19 +46,19 @@ func (k StepKind) String() string {
 // when Kind == StepKindRun. With and Env carry unevaluated expressions: the
 // scheduler resolves them just before execution against a live ContextProvider.
 type Step struct {
-	ID              string
-	Name            string
-	Kind            StepKind
-	Uses            UsesRef
-	Run             string
-	Shell           string
+	ID               string
+	Name             string
+	Kind             StepKind
+	Uses             UsesRef
+	Run              string
+	Shell            string
 	WorkingDirectory string
-	With            map[string]Expression
-	Env             map[string]Expression
-	If              Expression
-	ContinueOnError bool
-	TimeoutMinutes  int
-	Span            SourceSpan
+	With             map[string]Expression
+	Env              map[string]Expression
+	If               Expression
+	ContinueOnError  bool
+	TimeoutMinutes   int
+	Span             SourceSpan
 }
 
 // UsesRef identifies an action referenced by a `uses:` step. Local marks the

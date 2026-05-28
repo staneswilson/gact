@@ -196,51 +196,96 @@ func (p *parser) parsePostfix() (*node, error) {
 	if err != nil {
 		return nil, err
 	}
-	for {
-		switch p.peek().Kind {
-		case tkDot:
-			p.next()
-			id, err := p.expect(tkIdent, "identifier")
-			if err != nil {
-				return nil, err
-			}
-			n = &node{Kind: nMember, Str: id.Val, Children: []*node{n}}
-		case tkLBracket:
-			p.next()
-			idx, err := p.parseOr()
-			if err != nil {
-				return nil, err
-			}
-			if _, err := p.expect(tkRBracket, "']'"); err != nil {
-				return nil, err
-			}
-			n = &node{Kind: nIndex, Children: []*node{n, idx}}
-		case tkLParen:
-			if n.Kind != nIdent {
-				return nil, fmt.Errorf("parse: call applied to non-identifier at pos %d", p.peek().Pos)
-			}
-			p.next()
-			var args []*node
-			if p.peek().Kind != tkRParen {
-				for {
-					a, err := p.parseOr()
-					if err != nil {
-						return nil, err
-					}
-					args = append(args, a)
-					if p.peek().Kind != tkComma {
-						break
-					}
-					p.next()
-				}
-			}
-			if _, err := p.expect(tkRParen, "')'"); err != nil {
-				return nil, err
-			}
-			n = &node{Kind: nCall, Str: n.Str, Children: args}
-		default:
-			return n, nil
+	for isPostfixStart(p.peek().Kind) {
+		n, err = p.parsePostfixOp(n)
+		if err != nil {
+			return nil, err
 		}
+	}
+	return n, nil
+}
+
+// isPostfixStart reports whether the next token kind begins one of the
+// postfix forms (member access, index, or call). Pulling this out of
+// parsePostfix keeps that function below the gocyclo threshold.
+func isPostfixStart(k tokenKind) bool {
+	return k == tkDot || k == tkLBracket || k == tkLParen
+}
+
+// parsePostfixOp dispatches a single postfix operator. The caller has
+// already established that the next token is one of `.`, `[`, or `(`.
+func (p *parser) parsePostfixOp(n *node) (*node, error) {
+	switch p.peek().Kind {
+	case tkDot:
+		return p.parseMemberOp(n)
+	case tkLBracket:
+		return p.parseIndexOp(n)
+	case tkLParen:
+		return p.parseCallOp(n)
+	}
+	return nil, fmt.Errorf("parse: internal — non-postfix token %q at pos %d", p.peek().Val, p.peek().Pos)
+}
+
+// parseMemberOp consumes the leading `.` and the following identifier and
+// returns the resulting member-access node.
+func (p *parser) parseMemberOp(n *node) (*node, error) {
+	p.next()
+	id, err := p.expect(tkIdent, "identifier")
+	if err != nil {
+		return nil, err
+	}
+	return &node{Kind: nMember, Str: id.Val, Children: []*node{n}}, nil
+}
+
+// parseIndexOp consumes `[expr]` and returns an nIndex node with the inner
+// expression as the second child.
+func (p *parser) parseIndexOp(n *node) (*node, error) {
+	p.next()
+	idx, err := p.parseOr()
+	if err != nil {
+		return nil, err
+	}
+	if _, err := p.expect(tkRBracket, "']'"); err != nil {
+		return nil, err
+	}
+	return &node{Kind: nIndex, Children: []*node{n, idx}}, nil
+}
+
+// parseCallOp consumes `(args...)`. Calls are only legal on identifiers;
+// any other LHS is rejected here.
+func (p *parser) parseCallOp(n *node) (*node, error) {
+	if n.Kind != nIdent {
+		return nil, fmt.Errorf("parse: call applied to non-identifier at pos %d", p.peek().Pos)
+	}
+	p.next()
+	args, err := p.parseCallArgs()
+	if err != nil {
+		return nil, err
+	}
+	if _, err := p.expect(tkRParen, "')'"); err != nil {
+		return nil, err
+	}
+	return &node{Kind: nCall, Str: n.Str, Children: args}, nil
+}
+
+// parseCallArgs parses a comma-separated list of expressions terminated by
+// (but not consuming) `)`. Returns a nil slice when the argument list is
+// empty.
+func (p *parser) parseCallArgs() ([]*node, error) {
+	if p.peek().Kind == tkRParen {
+		return nil, nil
+	}
+	var args []*node
+	for {
+		a, err := p.parseOr()
+		if err != nil {
+			return nil, err
+		}
+		args = append(args, a)
+		if p.peek().Kind != tkComma {
+			return args, nil
+		}
+		p.next()
 	}
 }
 

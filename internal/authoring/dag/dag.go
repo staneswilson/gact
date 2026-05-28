@@ -69,13 +69,28 @@ func TopoSort(jobs map[wf.JobID]wf.Job) (Layers, error) {
 		return Layers{}, nil
 	}
 
-	// inDegree[id] = number of unresolved dependencies for id.
-	inDegree := make(map[wf.JobID]int, len(jobs))
-	// dependents[id] = jobs that need id; used to decrement in-degrees as we
-	// finalise layers.
-	dependents := make(map[wf.JobID][]wf.JobID, len(jobs))
+	inDegree, dependents, err := buildAdjacency(jobs)
+	if err != nil {
+		return nil, err
+	}
 
-	// Initialise structures, dedupe duplicate needs, and validate references.
+	ready := initialReady(inDegree)
+	layers, processed := walkLayers(ready, inDegree, dependents)
+
+	if processed != len(jobs) {
+		// Some jobs still have non-zero in-degree — there's a cycle.
+		return nil, buildCycleError(jobs, inDegree)
+	}
+	return layers, nil
+}
+
+// buildAdjacency materialises the in-degree map and the reverse adjacency
+// (`dependents`) from the job graph. Duplicate needs are dropped so a job
+// that lists the same dependency twice counts as one edge. Unknown needs
+// surface as UnknownNeedError so the caller can branch on errors.As.
+func buildAdjacency(jobs map[wf.JobID]wf.Job) (map[wf.JobID]int, map[wf.JobID][]wf.JobID, error) {
+	inDegree := make(map[wf.JobID]int, len(jobs))
+	dependents := make(map[wf.JobID][]wf.JobID, len(jobs))
 	for id, job := range jobs {
 		if _, ok := inDegree[id]; !ok {
 			inDegree[id] = 0
@@ -83,7 +98,7 @@ func TopoSort(jobs map[wf.JobID]wf.Job) (Layers, error) {
 		seen := make(map[wf.JobID]struct{}, len(job.Needs))
 		for _, need := range job.Needs {
 			if _, ok := jobs[need]; !ok {
-				return nil, &UnknownNeedError{Job: id, Need: need}
+				return nil, nil, &UnknownNeedError{Job: id, Need: need}
 			}
 			if _, dup := seen[need]; dup {
 				continue
@@ -93,8 +108,13 @@ func TopoSort(jobs map[wf.JobID]wf.Job) (Layers, error) {
 			dependents[need] = append(dependents[need], id)
 		}
 	}
+	return inDegree, dependents, nil
+}
 
-	// Seed the first layer with every zero-in-degree job, lexically sorted.
+// initialReady returns the seed layer for Kahn's algorithm: every job
+// whose in-degree is zero, in lexicographic order so the layered output
+// is deterministic.
+func initialReady(inDegree map[wf.JobID]int) []wf.JobID {
 	ready := make([]wf.JobID, 0)
 	for id, deg := range inDegree {
 		if deg == 0 {
@@ -102,12 +122,17 @@ func TopoSort(jobs map[wf.JobID]wf.Job) (Layers, error) {
 		}
 	}
 	sortJobIDs(ready)
+	return ready
+}
 
+// walkLayers consumes ready layer by layer, decrementing in-degrees as
+// each layer is finalised and returning the full Layers slice plus the
+// total number of jobs processed. processed != len(jobs) at the call site
+// signals a cycle in the residual graph.
+func walkLayers(ready []wf.JobID, inDegree map[wf.JobID]int, dependents map[wf.JobID][]wf.JobID) (Layers, int) {
 	var layers Layers
 	processed := 0
-
 	for len(ready) > 0 {
-		// Snapshot this layer.
 		layer := make([]wf.JobID, len(ready))
 		copy(layer, ready)
 		layers = append(layers, layer)
@@ -115,11 +140,7 @@ func TopoSort(jobs map[wf.JobID]wf.Job) (Layers, error) {
 
 		next := make([]wf.JobID, 0)
 		for _, id := range layer {
-			// Sort dependents for deterministic traversal even though the
-			// next layer is re-sorted below — being defensive keeps the
-			// algorithm independent of map iteration order.
-			deps := dependents[id]
-			for _, dep := range deps {
+			for _, dep := range dependents[id] {
 				inDegree[dep]--
 				if inDegree[dep] == 0 {
 					next = append(next, dep)
@@ -129,13 +150,7 @@ func TopoSort(jobs map[wf.JobID]wf.Job) (Layers, error) {
 		sortJobIDs(next)
 		ready = next
 	}
-
-	if processed != len(jobs) {
-		// Some jobs still have non-zero in-degree — there's a cycle.
-		return nil, buildCycleError(jobs, inDegree)
-	}
-
-	return layers, nil
+	return layers, processed
 }
 
 // buildCycleError walks the residual graph (nodes whose in-degree never hit

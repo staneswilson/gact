@@ -468,27 +468,35 @@ func decodeDispatchInputs(n *yaml.Node) map[string]wf.DispatchInput {
 		if k.Kind != yaml.ScalarNode {
 			continue
 		}
-		di := wf.DispatchInput{}
-		if v.Kind == yaml.MappingNode {
-			if _, vv, ok := findChild(v, "description"); ok && vv.Kind == yaml.ScalarNode {
-				di.Description = vv.Value
-			}
-			if _, vv, ok := findChild(v, "required"); ok && vv.Kind == yaml.ScalarNode {
-				di.Required = scalarBool(vv)
-			}
-			if _, vv, ok := findChild(v, "default"); ok && vv.Kind == yaml.ScalarNode {
-				di.Default = vv.Value
-			}
-			if _, vv, ok := findChild(v, "type"); ok && vv.Kind == yaml.ScalarNode {
-				di.Type = vv.Value
-			}
-			if _, vv, ok := findChild(v, "options"); ok {
-				di.Options = decodeStringList(vv)
-			}
-		}
-		out[k.Value] = di
+		out[k.Value] = decodeOneDispatchInput(v)
 	}
 	return out
+}
+
+// decodeOneDispatchInput materialises a single workflow_dispatch input's
+// metadata. Pulled out so decodeDispatchInputs stays at low cyclomatic
+// complexity and so each per-field branch is grouped with its peers.
+func decodeOneDispatchInput(v *yaml.Node) wf.DispatchInput {
+	di := wf.DispatchInput{}
+	if v == nil || v.Kind != yaml.MappingNode {
+		return di
+	}
+	if _, vv, ok := findChild(v, "description"); ok && vv.Kind == yaml.ScalarNode {
+		di.Description = vv.Value
+	}
+	if _, vv, ok := findChild(v, "required"); ok && vv.Kind == yaml.ScalarNode {
+		di.Required = scalarBool(vv)
+	}
+	if _, vv, ok := findChild(v, "default"); ok && vv.Kind == yaml.ScalarNode {
+		di.Default = vv.Value
+	}
+	if _, vv, ok := findChild(v, "type"); ok && vv.Kind == yaml.ScalarNode {
+		di.Type = vv.Value
+	}
+	if _, vv, ok := findChild(v, "options"); ok {
+		di.Options = decodeStringList(vv)
+	}
+	return di
 }
 
 // decodeWorkflowCall decodes `on.workflow_call:` — the most complex of
@@ -524,24 +532,32 @@ func decodeCallInputs(n *yaml.Node) map[string]wf.CallInput {
 		if k.Kind != yaml.ScalarNode {
 			continue
 		}
-		ci := wf.CallInput{}
-		if v.Kind == yaml.MappingNode {
-			if _, vv, ok := findChild(v, "description"); ok && vv.Kind == yaml.ScalarNode {
-				ci.Description = vv.Value
-			}
-			if _, vv, ok := findChild(v, "required"); ok && vv.Kind == yaml.ScalarNode {
-				ci.Required = scalarBool(vv)
-			}
-			if _, vv, ok := findChild(v, "default"); ok && vv.Kind == yaml.ScalarNode {
-				ci.Default = vv.Value
-			}
-			if _, vv, ok := findChild(v, "type"); ok && vv.Kind == yaml.ScalarNode {
-				ci.Type = vv.Value
-			}
-		}
-		out[k.Value] = ci
+		out[k.Value] = decodeOneCallInput(v)
 	}
 	return out
+}
+
+// decodeOneCallInput materialises one workflow_call.inputs entry. Split
+// out so decodeCallInputs stays small and the per-field assignment lives
+// next to its peers.
+func decodeOneCallInput(v *yaml.Node) wf.CallInput {
+	ci := wf.CallInput{}
+	if v == nil || v.Kind != yaml.MappingNode {
+		return ci
+	}
+	if _, vv, ok := findChild(v, "description"); ok && vv.Kind == yaml.ScalarNode {
+		ci.Description = vv.Value
+	}
+	if _, vv, ok := findChild(v, "required"); ok && vv.Kind == yaml.ScalarNode {
+		ci.Required = scalarBool(vv)
+	}
+	if _, vv, ok := findChild(v, "default"); ok && vv.Kind == yaml.ScalarNode {
+		ci.Default = vv.Value
+	}
+	if _, vv, ok := findChild(v, "type"); ok && vv.Kind == yaml.ScalarNode {
+		ci.Type = vv.Value
+	}
+	return ci
 }
 
 // decodeCallSecrets decodes `workflow_call.secrets`.
@@ -709,6 +725,11 @@ func decodeJobs(path string, n *yaml.Node) (map[wf.JobID]wf.Job, error) {
 // scalar so the job span can be anchored at the *key* rather than the
 // value — this matches user intuition when reporting "job X has a cycle"
 // and is the convention used throughout the parser.
+//
+// The body is split into three helpers: the simple shape-tolerant fields,
+// the strategy/matrix decode, and the steps decode. Each fits below the
+// gocyclo budget and is independently testable through the existing
+// golden-file suite.
 func decodeJob(path string, id wf.JobID, keyNode, n *yaml.Node) (wf.Job, error) {
 	job := wf.Job{
 		ID:   id,
@@ -717,30 +738,37 @@ func decodeJob(path string, id wf.JobID, keyNode, n *yaml.Node) (wf.Job, error) 
 	if n == nil || n.Kind != yaml.MappingNode {
 		return job, newError(path, n, fmt.Sprintf("job %q must be a mapping", id), nil)
 	}
+	applyJobShapeFields(path, n, &job)
+	if err := applyJobStrategy(path, n, &job); err != nil {
+		return wf.Job{}, err
+	}
+	if err := applyJobSteps(path, n, &job); err != nil {
+		return wf.Job{}, err
+	}
+	return job, nil
+}
+
+// applyJobShapeFields populates the nine shape-tolerant fields on a job by
+// delegating to applyJobScalarFields (the kind-guarded scalar fields:
+// name, if, continue-on-error, timeout-minutes) and applyJobStructuralFields
+// (the structural / composite fields: runs-on, needs, env, defaults,
+// outputs). The split exists purely to keep each half below the gocyclo
+// threshold without losing the per-field "find then decode" shape.
+func applyJobShapeFields(path string, n *yaml.Node, job *wf.Job) {
+	applyJobScalarFields(path, n, job)
+	applyJobStructuralFields(path, n, job)
+}
+
+// applyJobScalarFields decodes the four fields that REQUIRE a scalar yaml
+// node — anything else (sequence, mapping) is silently ignored so the
+// surrounding schema validator can report a single coherent error rather
+// than the parser producing partially-populated state.
+func applyJobScalarFields(path string, n *yaml.Node, job *wf.Job) {
 	if _, v, ok := findChild(n, "name"); ok && v.Kind == yaml.ScalarNode {
 		job.Name = v.Value
 	}
-	if _, v, ok := findChild(n, "runs-on"); ok {
-		job.RunsOn = decodeRunsOn(v)
-	}
-	if _, v, ok := findChild(n, "needs"); ok {
-		job.Needs = decodeNeeds(v)
-	}
 	if _, v, ok := findChild(n, "if"); ok && v.Kind == yaml.ScalarNode {
 		job.If = decodeExpression(path, v)
-	}
-	if _, v, ok := findChild(n, "strategy"); ok && v.Kind == yaml.MappingNode {
-		if m, err := decodeStrategy(path, v); err != nil {
-			return wf.Job{}, err
-		} else if m != nil {
-			job.Matrix = m
-		}
-	}
-	if _, v, ok := findChild(n, "env"); ok {
-		job.Env = decodeStringMap(v)
-	}
-	if _, v, ok := findChild(n, "defaults"); ok {
-		job.Defaults = decodeDefaults(v)
 	}
 	if _, v, ok := findChild(n, "continue-on-error"); ok && v.Kind == yaml.ScalarNode {
 		job.ContinueOnError = scalarBool(v)
@@ -748,17 +776,59 @@ func decodeJob(path string, id wf.JobID, keyNode, n *yaml.Node) (wf.Job, error) 
 	if _, v, ok := findChild(n, "timeout-minutes"); ok && v.Kind == yaml.ScalarNode {
 		job.TimeoutMinutes = scalarInt(v)
 	}
+}
+
+// applyJobStructuralFields decodes the composite fields. runs-on / needs /
+// env / defaults accept multiple yaml kinds (scalar vs sequence vs mapping)
+// and their per-field decoders absorb the dispatch; outputs is the only one
+// that must be a mapping because of how it cross-references step IDs.
+func applyJobStructuralFields(path string, n *yaml.Node, job *wf.Job) {
+	if _, v, ok := findChild(n, "runs-on"); ok {
+		job.RunsOn = decodeRunsOn(v)
+	}
+	if _, v, ok := findChild(n, "needs"); ok {
+		job.Needs = decodeNeeds(v)
+	}
+	if _, v, ok := findChild(n, "env"); ok {
+		job.Env = decodeStringMap(v)
+	}
+	if _, v, ok := findChild(n, "defaults"); ok {
+		job.Defaults = decodeDefaults(v)
+	}
 	if _, v, ok := findChild(n, "outputs"); ok && v.Kind == yaml.MappingNode {
 		job.Outputs = decodeOutputExpressions(path, v)
 	}
-	if _, v, ok := findChild(n, "steps"); ok && v.Kind == yaml.SequenceNode {
-		steps, err := decodeSteps(path, v)
-		if err != nil {
-			return wf.Job{}, err
-		}
-		job.Steps = steps
+}
+
+// applyJobStrategy decodes strategy.matrix if present and stores the
+// resulting *wf.Matrix on the job.
+func applyJobStrategy(path string, n *yaml.Node, job *wf.Job) error {
+	_, v, ok := findChild(n, "strategy")
+	if !ok || v.Kind != yaml.MappingNode {
+		return nil
 	}
-	return job, nil
+	m, err := decodeStrategy(path, v)
+	if err != nil {
+		return err
+	}
+	if m != nil {
+		job.Matrix = m
+	}
+	return nil
+}
+
+// applyJobSteps decodes the steps sequence and assigns it to the job.
+func applyJobSteps(path string, n *yaml.Node, job *wf.Job) error {
+	_, v, ok := findChild(n, "steps")
+	if !ok || v.Kind != yaml.SequenceNode {
+		return nil
+	}
+	steps, err := decodeSteps(path, v)
+	if err != nil {
+		return err
+	}
+	job.Steps = steps
+	return nil
 }
 
 // decodeRunsOn returns a RunnerLabel that captures the original `runs-on`
@@ -811,51 +881,36 @@ func decodeNeeds(n *yaml.Node) []wf.JobID {
 	}
 }
 
+// strategyFields holds the three sub-fields of `strategy:` after they
+// have been picked out of the mapping. Kept private to the parser so its
+// shape can evolve without affecting callers.
+type strategyFields struct {
+	matrix     *yaml.Node
+	maxPar     int
+	failFast   bool
+	failFastOK bool
+}
+
 // decodeStrategy reads `strategy:` and returns the Matrix portion. It is
 // the entry point invoked by decodeJob.
 func decodeStrategy(path string, n *yaml.Node) (*wf.Matrix, error) {
 	if n == nil || n.Kind != yaml.MappingNode {
 		return nil, nil
 	}
-	var (
-		mtxNode    *yaml.Node
-		maxPar     int
-		failFast   = true // GitHub default
-		failFastOK bool
-	)
-	for i := 0; i+1 < len(n.Content); i += 2 {
-		k := n.Content[i]
-		v := n.Content[i+1]
-		if k.Kind != yaml.ScalarNode {
-			continue
-		}
-		switch k.Value {
-		case "matrix":
-			mtxNode = v
-		case "max-parallel":
-			if v.Kind == yaml.ScalarNode {
-				maxPar = scalarInt(v)
-			}
-		case "fail-fast":
-			if v.Kind == yaml.ScalarNode {
-				failFast = scalarBool(v)
-				failFastOK = true
-			}
-		}
-	}
-	if mtxNode == nil {
+	fields := scanStrategyFields(n)
+	if fields.matrix == nil {
 		return nil, nil
 	}
-	mtx, err := decodeMatrix(path, mtxNode)
+	mtx, err := decodeMatrix(path, fields.matrix)
 	if err != nil {
 		return nil, err
 	}
 	if mtx == nil {
 		return nil, nil
 	}
-	mtx.MaxParallel = maxPar
-	if failFastOK {
-		mtx.FailFast = failFast
+	mtx.MaxParallel = fields.maxPar
+	if fields.failFastOK {
+		mtx.FailFast = fields.failFast
 	} else {
 		// Apply GitHub's documented default explicitly so consumers do not
 		// have to know it. This also matches the IR contract:
@@ -864,6 +919,35 @@ func decodeStrategy(path string, n *yaml.Node) (*wf.Matrix, error) {
 		mtx.FailFast = true
 	}
 	return mtx, nil
+}
+
+// scanStrategyFields walks the strategy mapping once, pulling out the
+// matrix node and the two flat options. Keeping the scan separate from
+// the matrix decode keeps decodeStrategy below the gocyclo budget while
+// preserving the one-pass iteration over n.Content.
+func scanStrategyFields(n *yaml.Node) strategyFields {
+	fields := strategyFields{failFast: true}
+	for i := 0; i+1 < len(n.Content); i += 2 {
+		k := n.Content[i]
+		v := n.Content[i+1]
+		if k.Kind != yaml.ScalarNode {
+			continue
+		}
+		switch k.Value {
+		case "matrix":
+			fields.matrix = v
+		case "max-parallel":
+			if v.Kind == yaml.ScalarNode {
+				fields.maxPar = scalarInt(v)
+			}
+		case "fail-fast":
+			if v.Kind == yaml.ScalarNode {
+				fields.failFast = scalarBool(v)
+				fields.failFastOK = true
+			}
+		}
+	}
+	return fields
 }
 
 // decodeMatrix decodes the `strategy.matrix:` mapping. Top-level keys
@@ -881,34 +965,45 @@ func decodeMatrix(path string, n *yaml.Node) (*wf.Matrix, error) {
 		if k.Kind != yaml.ScalarNode {
 			continue
 		}
-		switch k.Value {
-		case "include":
-			rows, err := decodeAnyMapList(path, v)
-			if err != nil {
-				return nil, err
-			}
-			m.Include = rows
-		case "exclude":
-			rows, err := decodeAnyMapList(path, v)
-			if err != nil {
-				return nil, err
-			}
-			m.Exclude = rows
-		default:
-			if v == nil {
-				continue
-			}
-			values, err := decodeAnyList(path, v)
-			if err != nil {
-				return nil, err
-			}
-			m.Axes[k.Value] = values
+		if err := assignMatrixEntry(path, m, k.Value, v); err != nil {
+			return nil, err
 		}
 	}
 	if len(m.Axes) == 0 && len(m.Include) == 0 && len(m.Exclude) == 0 {
 		return nil, nil
 	}
 	return m, nil
+}
+
+// assignMatrixEntry routes a single matrix mapping entry into the right
+// field on m. Pulled out so decodeMatrix has a single linear loop body
+// and the include/exclude/default branches can be tested in isolation.
+func assignMatrixEntry(path string, m *wf.Matrix, key string, v *yaml.Node) error {
+	switch key {
+	case "include":
+		rows, err := decodeAnyMapList(path, v)
+		if err != nil {
+			return err
+		}
+		m.Include = rows
+		return nil
+	case "exclude":
+		rows, err := decodeAnyMapList(path, v)
+		if err != nil {
+			return err
+		}
+		m.Exclude = rows
+		return nil
+	}
+	if v == nil {
+		return nil
+	}
+	values, err := decodeAnyList(path, v)
+	if err != nil {
+		return err
+	}
+	m.Axes[key] = values
+	return nil
 }
 
 // decodeAnyList decodes either a single scalar (one-element list) or a
@@ -1010,49 +1105,74 @@ func decodeSteps(path string, n *yaml.Node) ([]wf.Step, error) {
 // decodeStep decodes a single step mapping. Kind is determined by which
 // of `uses:` or `run:` is present, with `uses:` taking priority since a
 // well-formed step never declares both.
+//
+// The work is split across three helpers — scalar fields, mapping fields,
+// and the uses/run discriminator — so each one stays within the gocyclo
+// budget and so each group of related fields lives next to its peers.
 func decodeStep(path string, n *yaml.Node) (wf.Step, error) {
-	s := wf.Step{
-		Span: span(path, n),
+	s := wf.Step{Span: span(path, n)}
+	applyStepScalars(path, n, &s)
+	applyStepMaps(path, n, &s)
+	if err := applyStepKind(path, n, &s); err != nil {
+		return wf.Step{}, err
 	}
-	if _, v, ok := findChild(n, "id"); ok && v.Kind == yaml.ScalarNode {
-		s.ID = v.Value
+	return s, nil
+}
+
+// applyStepScalars populates the seven scalar-typed fields on a step
+// (id, name, if, shell, working-directory, continue-on-error,
+// timeout-minutes). All seven follow the same "if present and scalar,
+// assign" pattern, so a single dispatch table keeps the logic uniform.
+func applyStepScalars(path string, n *yaml.Node, s *wf.Step) {
+	setters := []struct {
+		key   string
+		apply func(v *yaml.Node)
+	}{
+		{"id", func(v *yaml.Node) { s.ID = v.Value }},
+		{"name", func(v *yaml.Node) { s.Name = v.Value }},
+		{"if", func(v *yaml.Node) { s.If = decodeExpression(path, v) }},
+		{"shell", func(v *yaml.Node) { s.Shell = v.Value }},
+		{"working-directory", func(v *yaml.Node) { s.WorkingDirectory = v.Value }},
+		{"continue-on-error", func(v *yaml.Node) { s.ContinueOnError = scalarBool(v) }},
+		{"timeout-minutes", func(v *yaml.Node) { s.TimeoutMinutes = scalarInt(v) }},
 	}
-	if _, v, ok := findChild(n, "name"); ok && v.Kind == yaml.ScalarNode {
-		s.Name = v.Value
+	for _, st := range setters {
+		if _, v, ok := findChild(n, st.key); ok && v.Kind == yaml.ScalarNode {
+			st.apply(v)
+		}
 	}
-	if _, v, ok := findChild(n, "if"); ok && v.Kind == yaml.ScalarNode {
-		s.If = decodeExpression(path, v)
-	}
-	if _, v, ok := findChild(n, "shell"); ok && v.Kind == yaml.ScalarNode {
-		s.Shell = v.Value
-	}
-	if _, v, ok := findChild(n, "working-directory"); ok && v.Kind == yaml.ScalarNode {
-		s.WorkingDirectory = v.Value
-	}
-	if _, v, ok := findChild(n, "continue-on-error"); ok && v.Kind == yaml.ScalarNode {
-		s.ContinueOnError = scalarBool(v)
-	}
-	if _, v, ok := findChild(n, "timeout-minutes"); ok && v.Kind == yaml.ScalarNode {
-		s.TimeoutMinutes = scalarInt(v)
-	}
+}
+
+// applyStepMaps populates the two mapping-typed fields on a step (with,
+// env). Both decode through decodeExpressionMap so each value carries the
+// right span for downstream diagnostics.
+func applyStepMaps(path string, n *yaml.Node, s *wf.Step) {
 	if _, v, ok := findChild(n, "with"); ok && v.Kind == yaml.MappingNode {
 		s.With = decodeExpressionMap(path, v)
 	}
 	if _, v, ok := findChild(n, "env"); ok && v.Kind == yaml.MappingNode {
 		s.Env = decodeExpressionMap(path, v)
 	}
+}
+
+// applyStepKind sets the StepKind plus its associated payload (Uses ref
+// or Run script). `uses:` takes priority because a well-formed step never
+// declares both — schema validation flags conflicts separately.
+func applyStepKind(path string, n *yaml.Node, s *wf.Step) error {
 	if _, v, ok := findChild(n, "uses"); ok && v.Kind == yaml.ScalarNode {
-		s.Kind = wf.StepKindUses
 		ref, err := decodeUses(path, v)
 		if err != nil {
-			return wf.Step{}, err
+			return err
 		}
+		s.Kind = wf.StepKindUses
 		s.Uses = ref
-	} else if _, v, ok := findChild(n, "run"); ok && v.Kind == yaml.ScalarNode {
+		return nil
+	}
+	if _, v, ok := findChild(n, "run"); ok && v.Kind == yaml.ScalarNode {
 		s.Kind = wf.StepKindRun
 		s.Run = v.Value
 	}
-	return s, nil
+	return nil
 }
 
 // decodeExpressionMap reads a mapping of scalar→scalar into a map of
@@ -1172,4 +1292,3 @@ func scalarInt(n *yaml.Node) int {
 	}
 	return 0
 }
-

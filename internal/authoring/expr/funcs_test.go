@@ -13,7 +13,7 @@ import (
 
 // TestFunc_Contains_String_FindsNeedle covers GH's substring-containment
 // path: present, absent, and the surprising "empty needle is always
-// present" rule that lets `contains(matrix.foo, '')` short-circuit cleanly.
+// present" rule that lets `contains(matrix.foo, ”)` short-circuit cleanly.
 func TestFunc_Contains_String_FindsNeedle(t *testing.T) {
 	ctx := EmptyContext()
 	cases := []struct {

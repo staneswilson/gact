@@ -48,7 +48,7 @@ func TestStaticContext_GithubFields_StableValues(t *testing.T) {
 // TestStaticContext_GithubField_Missing_ReturnsNull covers the
 // soft-lookup contract for the github.* scope: unrecognised keys must
 // not error and must evaluate to KindNull so expressions like
-// `${{ github.unknown == '' }}` produce the GH-spec answer (true).
+// `${{ github.unknown == ” }}` produce the GH-spec answer (true).
 func TestStaticContext_GithubField_Missing_ReturnsNull(t *testing.T) {
 	c := StaticContextFor(StaticInputs{Ref: "refs/heads/main"})
 	v, err := c.Get("github", "totally_not_a_field")
@@ -138,7 +138,7 @@ func TestStaticContext_Runner_KnownFields(t *testing.T) {
 // TestStaticContext_Runner_OpaqueSentinels asserts that runner.temp and
 // runner.tool_cache return non-empty opaque sentinels rather than Null.
 // Their concrete strings are implementation detail; the contract is
-// just "non-empty string" so `runner.temp != ''` evaluates truthy.
+// just "non-empty string" so `runner.temp != ”` evaluates truthy.
 func TestStaticContext_Runner_OpaqueSentinels(t *testing.T) {
 	c := StaticContextFor(StaticInputs{})
 	for _, key := range []string{"temp", "tool_cache"} {
@@ -286,7 +286,7 @@ func TestStaticContext_Env_AlwaysReturnsNull(t *testing.T) {
 // TestStaticContext_Secrets_KnownName_ReturnsOpaqueSentinel verifies that
 // allowlisted secret names resolve to the documented "<secrets.NAME>"
 // sentinel. The sentinel form is deliberately non-empty so the common
-// `secrets.FOO != ''` guard type-checks AND evaluates truthy under the
+// `secrets.FOO != ”` guard type-checks AND evaluates truthy under the
 // safer-by-default assumption that the secret is present.
 func TestStaticContext_Secrets_KnownName_ReturnsOpaqueSentinel(t *testing.T) {
 	c := StaticContextFor(StaticInputs{Secrets: []string{"GITHUB_TOKEN", "NPM_TOKEN"}})
@@ -437,13 +437,13 @@ func TestStaticContext_IntegratesWithEvaluator(t *testing.T) {
 
 // TestStaticContext_IntegratesWithEvaluator_SecretsGuard is the
 // complementary seam test for the secrets sentinel. The common GH
-// idiom `${{ secrets.FOO != '' }}` must evaluate truthy when FOO is
+// idiom `${{ secrets.FOO != ” }}` must evaluate truthy when FOO is
 // on the allowlist — the safe-by-default assumption that lets workflows
 // type-check during lint without leaking secret values.
 //
 // Subtle: under our Value equality rules (pkg/expr.Equal), Null compares
 // equal only to Null, so a denied/unknown secret name (which resolves
-// to Null) ALSO compares "!= ''" as true. That asymmetry is intentional
+// to Null) ALSO compares "!= ”" as true. That asymmetry is intentional
 // — it means a strict-mode lint warning about an unknown secret name
 // comes from a separate AST pass that inspects the Null kind directly,
 // NOT from short-circuiting the guard. We pin the allowed-name branch

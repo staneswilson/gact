@@ -53,45 +53,9 @@ func hashFilesFn(args []value) (value, error) {
 	}
 	fsys := os.DirFS(cwd)
 
-	seen := map[string]struct{}{}
-	var matches []string
-	for _, a := range args {
-		if a.Kind != kindString {
-			return value{}, fmt.Errorf("hashFiles: arg must be string, got kind %d", a.Kind)
-		}
-		pattern, _ := a.Data.(string)
-		// doublestar expects forward slashes regardless of host OS, so
-		// normalise any user-supplied separators before globbing. The
-		// returned paths are already forward-slashed.
-		pattern = filepath.ToSlash(pattern)
-		m, gerr := doublestar.Glob(fsys, pattern)
-		if gerr != nil {
-			return value{}, fmt.Errorf("hashFiles: glob %q: %w", pattern, gerr)
-		}
-		for _, p := range m {
-			// doublestar already emits forward-slash paths but ToSlash is
-			// a no-op on those — applying it makes the dedupe key
-			// canonically POSIX even if a future doublestar release ever
-			// changes that contract on Windows.
-			posix := filepath.ToSlash(p)
-			if _, ok := seen[posix]; ok {
-				continue
-			}
-			info, ierr := fs.Stat(fsys, posix)
-			if ierr != nil {
-				// A pattern can match a path whose stat then fails (race or
-				// permission). Surface this rather than silently dropping it.
-				return value{}, fmt.Errorf("hashFiles: stat %q: %w", posix, ierr)
-			}
-			if info.IsDir() {
-				// Globs naturally pick up directories when the pattern is
-				// loose (e.g. `**/*`). Hashing a directory has no meaning;
-				// GH only hashes file contents.
-				continue
-			}
-			seen[posix] = struct{}{}
-			matches = append(matches, posix)
-		}
+	matches, err := collectMatches(fsys, args)
+	if err != nil {
+		return value{}, err
 	}
 	// Empty match -> empty string, no error (GH-faithful).
 	if len(matches) == 0 {
@@ -106,6 +70,66 @@ func hashFilesFn(args []value) (value, error) {
 		}
 	}
 	return stringValue(hex.EncodeToString(outer.Sum(nil))), nil
+}
+
+// collectMatches resolves every pattern in args against fsys and returns
+// the deduplicated set of regular-file paths. Splitting this out keeps
+// hashFilesFn focused on the hash-build pipeline; directory entries and
+// duplicate paths are filtered here so the caller can assume the slice is
+// canonical.
+func collectMatches(fsys fs.FS, args []value) ([]string, error) {
+	seen := map[string]struct{}{}
+	var matches []string
+	for _, a := range args {
+		if a.Kind != kindString {
+			return nil, fmt.Errorf("hashFiles: arg must be string, got kind %d", a.Kind)
+		}
+		pattern, _ := a.Data.(string)
+		// doublestar expects forward slashes regardless of host OS, so
+		// normalise any user-supplied separators before globbing. The
+		// returned paths are already forward-slashed.
+		pattern = filepath.ToSlash(pattern)
+		m, gerr := doublestar.Glob(fsys, pattern)
+		if gerr != nil {
+			return nil, fmt.Errorf("hashFiles: glob %q: %w", pattern, gerr)
+		}
+		if err := appendPatternMatches(fsys, m, seen, &matches); err != nil {
+			return nil, err
+		}
+	}
+	return matches, nil
+}
+
+// appendPatternMatches walks the raw results from one glob, skips
+// directories and already-seen paths, and appends fresh hits to matches.
+// Pulled out so collectMatches stays under the gocyclo threshold and so
+// the dedupe + stat logic has a single home.
+func appendPatternMatches(fsys fs.FS, m []string, seen map[string]struct{}, matches *[]string) error {
+	for _, p := range m {
+		// doublestar already emits forward-slash paths but ToSlash is
+		// a no-op on those — applying it makes the dedupe key
+		// canonically POSIX even if a future doublestar release ever
+		// changes that contract on Windows.
+		posix := filepath.ToSlash(p)
+		if _, ok := seen[posix]; ok {
+			continue
+		}
+		info, ierr := fs.Stat(fsys, posix)
+		if ierr != nil {
+			// A pattern can match a path whose stat then fails (race or
+			// permission). Surface this rather than silently dropping it.
+			return fmt.Errorf("hashFiles: stat %q: %w", posix, ierr)
+		}
+		if info.IsDir() {
+			// Globs naturally pick up directories when the pattern is
+			// loose (e.g. `**/*`). Hashing a directory has no meaning;
+			// GH only hashes file contents.
+			continue
+		}
+		seen[posix] = struct{}{}
+		*matches = append(*matches, posix)
+	}
+	return nil
 }
 
 // writeFileInto folds one file's contribution into the running outer hash
