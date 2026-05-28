@@ -1,0 +1,39 @@
+run:
+  timeout: 5m
+  go: "1.22"
+
+linters:
+  disable-all: true
+  enable:
+    - errcheck
+    - govet
+    - ineffassign
+    - staticcheck
+    - unused
+    - gofmt
+    - goimports
+    - misspell
+    - contextcheck
+    - gocyclo
+    - errorlint
+    - nilerr
+
+linters-settings:
+  gocyclo:
+    min-complexity: 12
+  errcheck:
+    check-type-assertions: true
+    check-blank: false
+  govet:
+    enable-all: true
+    disable:
+      - fieldalignment
+
+issues:
+  exclude-dirs:
+    - test/corpus
+    - test/fixtures
+  exclude-rules:
+    - path: _test\.go
+      linters:
+        - gocyclo
