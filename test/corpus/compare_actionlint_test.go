@@ -163,7 +163,7 @@ func runTool(t *testing.T, name string, args ...string) (string, int) {
 // is asserted. We require AT LEAST ONE such case so the data-flow value-add
 // is locked in as a regression invariant.
 type corpusCase struct {
-	dir     string
+	dir      string
 	workflow string
 }
 

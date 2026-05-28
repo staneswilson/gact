@@ -83,49 +83,69 @@ func resolveFiles(patterns []string) ([]string, error) {
 	var files []string
 
 	for _, p := range patterns {
-		recursive := strings.HasSuffix(p, "/...")
-		root := strings.TrimSuffix(p, "/...")
-		if root == "" || root == "." {
-			root = "."
-		}
-		root = filepath.Clean(root)
-
-		info, err := os.Stat(root)
+		recursive, root, err := patternRoot(p)
 		if err != nil {
-			return nil, fmt.Errorf("stat %s: %w", root, err)
+			return nil, err
 		}
-		if !info.IsDir() {
-			return nil, fmt.Errorf("%s is not a directory", root)
-		}
-
-		walkErr := filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
-			if err != nil {
-				return err
-			}
-			if d.IsDir() {
-				if shouldSkipDir(root, path, recursive) {
-					return filepath.SkipDir
-				}
-				return nil
-			}
-			if !strings.HasSuffix(path, ".go") {
-				return nil
-			}
-			if strings.HasSuffix(path, "_test.go") {
-				return nil
-			}
-			if _, dup := seen[path]; dup {
-				return nil
-			}
-			seen[path] = struct{}{}
-			files = append(files, path)
-			return nil
-		})
-		if walkErr != nil {
-			return nil, walkErr
+		if err := walkPattern(root, recursive, seen, &files); err != nil {
+			return nil, err
 		}
 	}
 	return files, nil
+}
+
+// patternRoot resolves a single archlint pattern (either "dir" or
+// "dir/...") to the directory we should walk and whether the walk is
+// recursive. It returns an error if the root is missing or is not a
+// directory. Splitting this out keeps resolveFiles under the gocyclo
+// threshold without losing the early-fail behaviour that makes
+// misconfigurations surface immediately.
+func patternRoot(p string) (bool, string, error) {
+	recursive := strings.HasSuffix(p, "/...")
+	root := strings.TrimSuffix(p, "/...")
+	if root == "" || root == "." {
+		root = "."
+	}
+	root = filepath.Clean(root)
+
+	info, err := os.Stat(root)
+	if err != nil {
+		return false, "", fmt.Errorf("stat %s: %w", root, err)
+	}
+	if !info.IsDir() {
+		return false, "", fmt.Errorf("%s is not a directory", root)
+	}
+	return recursive, root, nil
+}
+
+// walkPattern walks root and appends every non-test .go file to *files,
+// honouring the recursive / hidden / vendor / testdata skip rules and
+// deduplicating against seen. The walk callback is its own function so
+// the per-entry branch density stays out of resolveFiles' cyclo budget.
+func walkPattern(root string, recursive bool, seen map[string]struct{}, files *[]string) error {
+	return filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if d.IsDir() {
+			if shouldSkipDir(root, path, recursive) {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		if !strings.HasSuffix(path, ".go") {
+			return nil
+		}
+		if strings.HasSuffix(path, "_test.go") {
+			return nil
+		}
+		if _, dup := seen[path]; dup {
+			return nil
+		}
+		seen[path] = struct{}{}
+		*files = append(*files, path)
+		return nil
+	})
 }
 
 // shouldSkipDir filters out directories we never want to descend into:
