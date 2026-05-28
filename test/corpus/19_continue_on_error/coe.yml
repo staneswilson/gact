@@ -1,0 +1,15 @@
+name: continue-on-error
+on:
+  push:
+    branches: [main]
+
+jobs:
+  flaky:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Possibly failing
+        continue-on-error: true
+        run: ./run-flaky-thing.sh
+      - name: Always runs after
+        run: echo "carrying on"

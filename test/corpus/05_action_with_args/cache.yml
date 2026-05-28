@@ -1,0 +1,16 @@
+name: action-with-args
+on:
+  push:
+    branches: [main]
+
+jobs:
+  cached:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cache/go-build
+          key: gocache
+          restore-keys: gocache-fallback
+      - run: go build ./...

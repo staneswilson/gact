@@ -1,0 +1,14 @@
+name: container-job
+on:
+  push:
+    branches: [main]
+
+jobs:
+  build-in-container:
+    runs-on: ubuntu-latest
+    container:
+      image: node:20-alpine
+      options: --cpus 1
+    steps:
+      - uses: actions/checkout@v4
+      - run: node --version

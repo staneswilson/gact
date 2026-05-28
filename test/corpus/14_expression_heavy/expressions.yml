@@ -1,0 +1,24 @@
+name: expression-heavy
+on:
+  push:
+    branches: [main]
+
+jobs:
+  evaluate:
+    runs-on: ubuntu-latest
+    env:
+      REF_NAME: ${{ github.ref_name }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Many expressions
+        env:
+          REPO: ${{ github.repository }}
+          ACTOR: ${{ github.actor }}
+          IS_MAIN: ${{ github.ref == 'refs/heads/main' }}
+          SHORT_SHA: ${{ github.sha }}
+          RUN_OS: ${{ runner.os }}
+        run: |
+          echo "repo=$REPO actor=$ACTOR is_main=$IS_MAIN sha=$SHORT_SHA os=$RUN_OS"
+      - name: Conditional echo
+        if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+        run: echo "push to main"

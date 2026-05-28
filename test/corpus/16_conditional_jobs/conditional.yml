@@ -1,0 +1,24 @@
+name: conditional-jobs
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  always:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "always runs"
+
+  only-push:
+    if: ${{ github.event_name == 'push' }}
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "push only"
+
+  only-pr:
+    if: ${{ github.event_name == 'pull_request' }}
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "pr only"

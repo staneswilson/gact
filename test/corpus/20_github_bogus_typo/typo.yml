@@ -1,0 +1,21 @@
+name: typo
+on:
+  push:
+    branches: [main]
+
+# This workflow contains a deliberate typo in a `${{ github.* }}` reference.
+# Both actionlint (via its property-checker) and gact (via its static-context
+# lookup tracker) flag `github.bogus_field` as unknown. The corpus anchors
+# at least one case where the diagnostic surface is non-trivial; the
+# 21_unknown_needs_dual_pass/ case anchors the strict gact > actionlint
+# floor.
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Echo wrong
+        env:
+          WRONG: ${{ github.bogus_field }}
+        run: echo "$WRONG"

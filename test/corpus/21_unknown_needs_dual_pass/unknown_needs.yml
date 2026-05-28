@@ -1,0 +1,20 @@
+name: unknown_needs
+on: push
+
+# This workflow references a non-existent job in the `needs:` list. gact
+# detects this in TWO passes — its schema validator emits
+# SCHEMA-JOB-UNKNOWN-NEEDS at the job's position, AND its DAG builder
+# raises an UnknownNeedError that materialises into a LINT-UNKNOWN-NEEDS
+# diagnostic. actionlint emits a single combined diagnostic for the same
+# issue. The diagnostic-count delta is the wedge that anchors the
+# regression invariant in compare_actionlint_test.go's "at least one
+# gact > actionlint" assertion. Both signals point at the same root
+# cause; the dual emission is intentional so the static analyser
+# surfaces the issue even when one of the two passes is later refactored.
+
+jobs:
+  build:
+    needs: [does_not_exist]
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo unreached

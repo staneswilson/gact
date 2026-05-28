@@ -1,0 +1,22 @@
+name: shared
+on:
+  workflow_call:
+    inputs:
+      environment:
+        required: true
+        type: string
+    outputs:
+      release_id:
+        description: Release identifier emitted by the build step.
+        value: ${{ jobs.build.outputs.release_id }}
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    outputs:
+      release_id: ${{ steps.id.outputs.value }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: id
+        run: echo "value=rel-$(date +%s)" >> "$GITHUB_OUTPUT"
+      - run: echo "${{ inputs.environment }}"

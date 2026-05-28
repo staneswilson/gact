@@ -1,0 +1,20 @@
+name: env-at-all-levels
+on:
+  push:
+    branches: [main]
+
+env:
+  GLOBAL_VAR: workflow-level
+
+jobs:
+  show:
+    runs-on: ubuntu-latest
+    env:
+      JOB_VAR: job-level
+    steps:
+      - name: Show globals
+        run: echo "global=$GLOBAL_VAR job=$JOB_VAR"
+      - name: Step-scoped env
+        env:
+          STEP_VAR: step-level
+        run: echo "step=$STEP_VAR"

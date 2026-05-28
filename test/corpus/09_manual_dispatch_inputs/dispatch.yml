@@ -1,0 +1,21 @@
+name: dispatch
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: Deployment environment
+        required: true
+        type: choice
+        options: [dev, staging, prod]
+      dry_run:
+        description: Perform a no-op deploy
+        required: false
+        type: boolean
+        default: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: echo "env=${{ inputs.environment }} dry_run=${{ inputs.dry_run }}"
