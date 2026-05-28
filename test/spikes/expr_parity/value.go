@@ -39,12 +39,12 @@ const (
 	kindArray
 )
 
-func nullValue() Value             { return Value{Kind: kindNull} }
-func boolValue(b bool) Value       { return Value{Kind: kindBool, Data: b} }
-func numberValue(n float64) Value  { return Value{Kind: kindNumber, Data: n} }
-func stringValue(s string) Value   { return Value{Kind: kindString, Data: s} }
+func nullValue() Value                   { return Value{Kind: kindNull} }
+func boolValue(b bool) Value             { return Value{Kind: kindBool, Data: b} }
+func numberValue(n float64) Value        { return Value{Kind: kindNumber, Data: n} }
+func stringValue(s string) Value         { return Value{Kind: kindString, Data: s} }
 func objectValue(m map[string]any) Value { return Value{Kind: kindObject, Data: m} }
-func arrayValue(a []any) Value     { return Value{Kind: kindArray, Data: a} }
+func arrayValue(a []any) Value           { return Value{Kind: kindArray, Data: a} }
 
 // fromAny converts a value freshly decoded from JSON into a Value.
 // JSON numbers are always float64; we keep that representation.
@@ -78,12 +78,14 @@ func (v Value) truthy() bool {
 	case kindNull:
 		return false
 	case kindBool:
-		return v.Data.(bool)
+		b, _ := v.Data.(bool)
+		return b
 	case kindNumber:
-		n := v.Data.(float64)
+		n, _ := v.Data.(float64)
 		return n != 0 && n == n // also rejects NaN
 	case kindString:
-		return v.Data.(string) != ""
+		s, _ := v.Data.(string)
+		return s != ""
 	case kindObject, kindArray:
 		return true
 	}
@@ -97,14 +99,17 @@ func (v Value) asString() string {
 	case kindNull:
 		return ""
 	case kindBool:
-		if v.Data.(bool) {
+		b, _ := v.Data.(bool)
+		if b {
 			return "true"
 		}
 		return "false"
 	case kindNumber:
-		return formatNumber(v.Data.(float64))
+		n, _ := v.Data.(float64)
+		return formatNumber(n)
 	case kindString:
-		return v.Data.(string)
+		s, _ := v.Data.(string)
+		return s
 	case kindObject:
 		// Templating would print "Object" — for the spike we serialize JSON
 		// for diagnostics. Corpus expressions should not rely on this path.
@@ -154,11 +159,17 @@ func equal(a, b Value) bool {
 	if a.Kind == b.Kind {
 		switch a.Kind {
 		case kindBool:
-			return a.Data.(bool) == b.Data.(bool)
+			ab, _ := a.Data.(bool)
+			bb, _ := b.Data.(bool)
+			return ab == bb
 		case kindNumber:
-			return a.Data.(float64) == b.Data.(float64)
+			an, _ := a.Data.(float64)
+			bn, _ := b.Data.(float64)
+			return an == bn
 		case kindString:
-			return a.Data.(string) == b.Data.(string)
+			as, _ := a.Data.(string)
+			bs, _ := b.Data.(string)
+			return as == bs
 		}
 		// Object / array equality is undefined territory in the spike.
 		return false
@@ -175,14 +186,16 @@ func equal(a, b Value) bool {
 func toNumber(v Value) (float64, bool) {
 	switch v.Kind {
 	case kindNumber:
-		return v.Data.(float64), true
+		n, _ := v.Data.(float64)
+		return n, true
 	case kindBool:
-		if v.Data.(bool) {
+		b, _ := v.Data.(bool)
+		if b {
 			return 1, true
 		}
 		return 0, true
 	case kindString:
-		s := v.Data.(string)
+		s, _ := v.Data.(string)
 		if s == "" {
 			return 0, true
 		}

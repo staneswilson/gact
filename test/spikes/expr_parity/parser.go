@@ -25,15 +25,15 @@ const (
 	nNumber
 	nBool
 	nNull
-	nIdent       // root identifier (github, runner, matrix, status, ...)
-	nMember      // Children[0].field — field stored in Str
-	nIndex       // Children[0][Children[1]]
-	nCall        // function call: Str = name, Children = args
-	nNot         // !x
-	nAnd         // x && y
-	nOr          // x || y
-	nEq          // x == y
-	nNeq         // x != y
+	nIdent  // root identifier (github, runner, matrix, status, ...)
+	nMember // Children[0].field — field stored in Str
+	nIndex  // Children[0][Children[1]]
+	nCall   // function call: Str = name, Children = args
+	nNot    // !x
+	nAnd    // x && y
+	nOr     // x || y
+	nEq     // x == y
+	nNeq    // x != y
 )
 
 // parser tracks position in the token stream. Recursive-descent with a fixed
@@ -139,60 +139,99 @@ func (p *parser) parseUnary() (*node, error) {
 	return p.parsePostfix()
 }
 
-// parsePostfix handles the .field / [index] / (args) chain.
+// parsePostfix handles the .field / [index] / (args) chain. It drives the
+// loop and per-arm dispatch; the actual work of each postfix form lives in
+// a dedicated method so this function stays under the gocyclo threshold
+// and so each form's bookkeeping has one home.
 func (p *parser) parsePostfix() (*node, error) {
 	n, err := p.parsePrimary()
 	if err != nil {
 		return nil, err
 	}
 	for {
+		var updated *node
 		switch p.peek().Kind {
 		case tkDot:
-			p.next()
-			id, err := p.expect(tkIdent)
-			if err != nil {
-				return nil, err
-			}
-			n = &node{Kind: nMember, Str: id.Val, Children: []*node{n}}
+			updated, err = p.parsePostfixMember(n)
 		case tkLBracket:
-			p.next()
-			idx, err := p.parseOr()
-			if err != nil {
-				return nil, err
-			}
-			if _, err := p.expect(tkRBracket); err != nil {
-				return nil, err
-			}
-			n = &node{Kind: nIndex, Children: []*node{n, idx}}
+			updated, err = p.parsePostfixIndex(n)
 		case tkLParen:
-			// Function call. The callee must be an identifier — GH does not have
-			// first-class function values.
-			if n.Kind != nIdent {
-				return nil, fmt.Errorf("parse: call applied to non-identifier at pos %d", p.peek().Pos)
-			}
-			p.next()
-			var args []*node
-			if p.peek().Kind != tkRParen {
-				for {
-					a, err := p.parseOr()
-					if err != nil {
-						return nil, err
-					}
-					args = append(args, a)
-					if p.peek().Kind != tkComma {
-						break
-					}
-					p.next()
-				}
-			}
-			if _, err := p.expect(tkRParen); err != nil {
-				return nil, err
-			}
-			n = &node{Kind: nCall, Str: n.Str, Children: args}
+			updated, err = p.parsePostfixCall(n)
 		default:
 			return n, nil
 		}
+		if err != nil {
+			return nil, err
+		}
+		n = updated
 	}
+}
+
+// parsePostfixMember consumes ".ident" and wraps n in an nMember node.
+// Assumes the current token is tkDot.
+func (p *parser) parsePostfixMember(n *node) (*node, error) {
+	p.next()
+	id, err := p.expect(tkIdent)
+	if err != nil {
+		return nil, err
+	}
+	return &node{Kind: nMember, Str: id.Val, Children: []*node{n}}, nil
+}
+
+// parsePostfixIndex consumes "[expr]" and wraps n in an nIndex node.
+// Assumes the current token is tkLBracket.
+func (p *parser) parsePostfixIndex(n *node) (*node, error) {
+	p.next()
+	idx, err := p.parseOr()
+	if err != nil {
+		return nil, err
+	}
+	if _, err := p.expect(tkRBracket); err != nil {
+		return nil, err
+	}
+	return &node{Kind: nIndex, Children: []*node{n, idx}}, nil
+}
+
+// parsePostfixCall consumes "(arg, arg, ...)" and wraps n in an nCall.
+// The callee must be a bare identifier — GH does not have first-class
+// function values, so any other shape is a parse error. Assumes the
+// current token is tkLParen.
+func (p *parser) parsePostfixCall(n *node) (*node, error) {
+	if n.Kind != nIdent {
+		return nil, fmt.Errorf("parse: call applied to non-identifier at pos %d", p.peek().Pos)
+	}
+	p.next()
+	args, err := p.parseCallArgs()
+	if err != nil {
+		return nil, err
+	}
+	if _, err := p.expect(tkRParen); err != nil {
+		return nil, err
+	}
+	return &node{Kind: nCall, Str: n.Str, Children: args}, nil
+}
+
+// parseCallArgs reads zero or more comma-separated argument expressions.
+// It stops at the closing ')', which the caller is responsible for
+// consuming. Returning nil for an empty arg list matches the production
+// evaluator's "no args = nil slice" contract.
+func (p *parser) parseCallArgs() ([]*node, error) {
+	if p.peek().Kind == tkRParen {
+		return nil, nil
+	}
+	var args []*node
+	for {
+		a, err := p.parseOr()
+		if err != nil {
+			return nil, err
+		}
+		args = append(args, a)
+		if p.peek().Kind != tkComma {
+			break
+		}
+		p.next()
+	}
+	return args, nil
 }
 
 func (p *parser) parsePrimary() (*node, error) {
