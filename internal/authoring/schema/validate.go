@@ -13,11 +13,11 @@
 // collects every violation it finds; the caller decides whether to render all
 // of them, just the first, or to filter by code.
 //
-// Coupling note: pkg/workflow is the only foreign import on purpose. Once the
-// sibling package internal/diag stabilises, a thin adapter will convert
-// SchemaError → diag.Diagnostic; the validator itself stays free of that
-// dependency so it can be reused from contexts (tests, REPLs, plugins) where
-// pulling the diag formatter is excessive.
+// Coupling note: validate.go imports pkg/workflow only. The SchemaError →
+// diag.Diagnostic conversion lives in the sibling file diag.go so the
+// validator itself stays free of that dependency and can be reused from
+// contexts (tests, REPLs, plugins) where pulling the diag formatter is
+// excessive.
 package schema
 
 import (
@@ -48,10 +48,10 @@ const (
 )
 
 // SchemaError is a single structural diagnostic. It is intentionally
-// self-contained: this package must not import internal/diag (which is being
-// built in parallel and is not yet on disk). Once diag lands, a small adapter
-// in another package will translate SchemaError to diag.Diagnostic; nothing
-// in this file needs to change.
+// self-contained: this file does not import internal/diag, so SchemaError
+// remains usable from contexts (tests, REPLs, plugins) that do not pull the
+// diag formatter. The translation to diag.Diagnostic lives in this package's
+// diag.go via SchemaError.Diagnostic and the bulk-slice Diagnostics helper.
 //
 // Path is the workflow file path so that errors emitted from contexts that do
 // not carry a populated Span (e.g. "the whole workflow has no triggers") can
