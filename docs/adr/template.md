@@ -1,43 +1,41 @@
-# ADR-NNN: Title
+# ADR NNN: <Title>
 
-- **Status:** Proposed | Accepted | Superseded by ADR-XXX | Deprecated
-- **Date:** YYYY-MM-DD
-- **Deciders:** name(s)
+**Status:** <Status>
+**Date:** <YYYY-MM-DD>
+**Deciders:** <Names>
 
 ## Context
 
-What problem is being solved? What forces are at play (technical, organisational,
-business, regulatory)? What constraints apply? Cite specs, prior ADRs, or
-external standards relevant to the decision.
+<Two to four paragraphs. What problem are we trying to solve? What constraints,
+prior incidents, or research informed the decision? Cross-reference the design
+spec at `docs/specs/2026-05-28-gact-design.md` and the plan at
+`docs/superpowers/plans/` — link by relative path if appropriate, otherwise
+describe.>
 
 ## Decision
 
-What we decided. Stated as a present-tense, factual claim. One paragraph.
+<One to three paragraphs. State the decision in declarative form. "We use X to
+achieve Y." Be specific — name files, ports, packages.>
 
 ## Consequences
 
-What becomes easier, harder, or impossible as a result. Include both positive
-and negative consequences. Be specific.
+**Positive:**
+- <bullet>
+- <bullet>
 
-### Positive
+**Negative / trade-offs accepted:**
+- <bullet>
 
-- ...
+**Neutral:**
+- <bullet>
 
-### Negative
+## Alternatives considered
 
-- ...
+### <Alternative name>
 
-## Alternatives Considered
+<One paragraph why this was rejected. Be concrete about what would have gone
+wrong.>
 
-Each alternative gets a heading. For each:
+### <Another alternative>
 
-- What it is
-- Why it was rejected (in terms of the forces above)
-
-### Alternative 1: ...
-
-### Alternative 2: ...
-
-## References
-
-- Links to the source spec / prior ADRs / external materials.
+<Same shape.>
