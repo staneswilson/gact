@@ -1,0 +1,10 @@
+{
+  "name": "exit-code-mismatch",
+  "comment": "The classic real-divergence case: same command, same stdout, different process exit code. Almost certainly means a build/lint/test passed locally but failed on GitHub (or vice versa) and demands a human's attention.",
+  "local":  "go test ./...",
+  "remote": "go test ./...",
+  "exit_code_local":  0,
+  "exit_code_remote": 1,
+  "expected_category": "block",
+  "expected_reason": "exit-code-mismatch"
+}

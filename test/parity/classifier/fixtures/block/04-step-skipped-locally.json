@@ -1,0 +1,10 @@
+{
+  "name": "step-skipped-locally",
+  "comment": "An `if:` expression evaluates differently on the two runners — most commonly because a context value (`github.event_name`, `github.ref`, a step output, a secret presence check) is unavailable locally. The remote ran the step; gact silently skipped it. The two workflows behaved differently and a downstream consumer may see different outputs.",
+  "local":  "Run docker login -u ${{ secrets.DOCKER_USER }}",
+  "remote": "Run docker login -u ${{ secrets.DOCKER_USER }}",
+  "step_skipped_local":  true,
+  "step_skipped_remote": false,
+  "expected_category": "block",
+  "expected_reason": "step-skipped-one-side"
+}

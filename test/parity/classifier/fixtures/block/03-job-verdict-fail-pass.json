@@ -1,0 +1,10 @@
+{
+  "name": "job-verdict-fail-then-pass",
+  "comment": "Reverse direction of the flip: gact failed locally, GitHub passed. Equally important — means either gact is over-strict (false positive) or GitHub silently tolerated something gact caught (e.g. a marketplace action that swallows non-zero on its own internal failure). Both warrant an issue.",
+  "local":  "deploy.yml result",
+  "remote": "deploy.yml result",
+  "job_verdict_local":  "failure",
+  "job_verdict_remote": "success",
+  "expected_category": "block",
+  "expected_reason": "job-verdict-flip"
+}

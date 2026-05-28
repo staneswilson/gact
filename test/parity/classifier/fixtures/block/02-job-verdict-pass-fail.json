@@ -1,0 +1,10 @@
+{
+  "name": "job-verdict-pass-then-fail",
+  "comment": "Job-level verdict flip: gact reports success locally, GitHub reports failure (or vice versa). Even if every line and exit code matches at the step level, a verdict flip is a Block — it means the workflow's overall outcome is different and a downstream consumer (status check, gating, deployment trigger) sees different signal.",
+  "local":  "deploy.yml result",
+  "remote": "deploy.yml result",
+  "job_verdict_local":  "success",
+  "job_verdict_remote": "failure",
+  "expected_category": "block",
+  "expected_reason": "job-verdict-flip"
+}

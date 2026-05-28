@@ -1,0 +1,10 @@
+{
+  "name": "step-skipped-remotely",
+  "comment": "Reverse direction: gact ran the step (because a static-context evaluator over-approximated `if:` to true) and GitHub correctly skipped it. The harness flags this because it implies the parity classifier should not be permissive on `if:` evaluation — over-running locally is observable.",
+  "local":  "Run notify slack",
+  "remote": "Run notify slack",
+  "step_skipped_local":  false,
+  "step_skipped_remote": true,
+  "expected_category": "block",
+  "expected_reason": "step-skipped-one-side"
+}

@@ -1,0 +1,8 @@
+{
+  "name": "output-value-mismatch",
+  "comment": "A step output (the canonical `KEY=value` line written to GITHUB_OUTPUT) has the same key but a different value. Downstream steps using `${{ steps.foo.outputs.version }}` will see one value locally and another remotely; any subsequent `if:` predicate that depends on the value may flip. The lines look textually trivial but they are functionally load-bearing.",
+  "local":  "version=1.2.3",
+  "remote": "version=1.2.4",
+  "expected_category": "block",
+  "expected_reason": "output-value-mismatch"
+}
