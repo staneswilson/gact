@@ -143,9 +143,14 @@ type Rule struct {
 // (Task 3.9) is expected to append workflow-specific rules; consumers
 // are expected to do so at init() time before the first Classify call.
 //
-// Block and warn rules are added in follow-up commits alongside their
-// fixtures.
+// Warn rules are added in a follow-up commit alongside their fixtures.
 var Rules = []Rule{
+	// Block rules — outcome-changing divergence.
+	{Name: "exit-code-mismatch", Category: CategoryBlock, Match: ruleExitCodeMismatch},
+	{Name: "job-verdict-flip", Category: CategoryBlock, Match: ruleJobVerdictFlip},
+	{Name: "step-skipped-one-side", Category: CategoryBlock, Match: ruleStepSkippedOneSide},
+	{Name: "output-value-mismatch", Category: CategoryBlock, Match: ruleOutputValueMismatch},
+
 	// Noise rules — non-semantic divergence.
 	{Name: "iso8601-timestamp", Category: CategoryNoise, Match: ruleISO8601Timestamp},
 	{Name: "runner-name", Category: CategoryNoise, Match: ruleRunnerName},
@@ -168,6 +173,87 @@ func Classify(d Diff) Result {
 		}
 	}
 	return Result{Category: CategoryWarn, Reason: "default-warn"}
+}
+
+// ----------------------------------------------------------------------
+// Block rules
+// ----------------------------------------------------------------------
+
+// ruleExitCodeMismatch fires when the local and remote runs reported
+// different process-exit codes for the same step. This is the canonical
+// "real divergence" — pass-on-one-side, fail-on-the-other — and is
+// always a Block.
+func ruleExitCodeMismatch(d Diff) bool {
+	return d.ExitCodeLocal != d.ExitCodeRemote
+}
+
+// ruleJobVerdictFlip fires when GitHub reports one job verdict
+// (success / failure) and the local run reports another. Empty strings
+// (the zero value) mean "no signal" and are ignored — Diffs without
+// verdict information go through the line-text rules instead.
+func ruleJobVerdictFlip(d Diff) bool {
+	if d.JobVerdictLocal == "" || d.JobVerdictRemote == "" {
+		return false
+	}
+	return d.JobVerdictLocal != d.JobVerdictRemote
+}
+
+// ruleStepSkippedOneSide fires when one side skipped a step (e.g. due
+// to an `if:` predicate evaluating differently) and the other ran it.
+// This is plan §7.10's "step skipped on one side but not the other"
+// case and is always a Block.
+func ruleStepSkippedOneSide(d Diff) bool {
+	return d.StepSkippedLocal != d.StepSkippedRemote
+}
+
+// outputValuePattern recognises a line of the form `<key>=<value>`
+// emitted by GitHub Actions to mark a step output. The capture groups
+// are (key, value). We intentionally require the line to have content
+// on either side of the equals sign so that a stray `=` in a log line
+// is not mistaken for a step output marker.
+var outputValuePattern = regexp.MustCompile(`^([A-Za-z_][A-Za-z0-9_-]*)=(.*)$`)
+
+// noiseKeyPrefixes is the set of `<key>=<value>` keys that the noise
+// rules below claim. ruleOutputValueMismatch yields on those so that
+// the noise rules — which know the keys' semantics — get to classify
+// them instead.
+var noiseKeyPrefixes = map[string]struct{}{
+	"RUNNER_NAME":       {},
+	"RUNNER_TEMP":       {},
+	"RUNNER_TOOL_CACHE": {},
+	"GITHUB_WORKSPACE":  {},
+}
+
+// ruleOutputValueMismatch fires when both lines look like step-output
+// assignments (`name=value`) with the same key but a different value.
+// A mismatched output value is always functionally meaningful; even if
+// the exit codes match, the downstream consumer of the output behaves
+// differently, and any downstream `if:` predicate may flip.
+//
+// Step-output lines are syntactically indistinguishable from other
+// KEY=value emissions (RUNNER_NAME=..., env-dump tokens). To avoid
+// stealing those cases — which the noise rules below classify as
+// noise — this rule explicitly yields on keys in noiseKeyPrefixes.
+// It also yields when either side has a semicolon (the env-dump
+// separator), since that's clearly an env dump rather than a step
+// output.
+func ruleOutputValueMismatch(d Diff) bool {
+	if strings.Contains(d.Local, envOrderSeparator) ||
+		strings.Contains(d.Remote, envOrderSeparator) {
+		return false
+	}
+	lm := outputValuePattern.FindStringSubmatch(d.Local)
+	rm := outputValuePattern.FindStringSubmatch(d.Remote)
+	if lm == nil || rm == nil {
+		return false
+	}
+	if lm[1] != rm[1] {
+		return false
+	}
+	if _, isNoise := noiseKeyPrefixes[lm[1]]; isNoise {
+		return false
+	}
+	return lm[2] != rm[2]
 }
 
 // ----------------------------------------------------------------------
