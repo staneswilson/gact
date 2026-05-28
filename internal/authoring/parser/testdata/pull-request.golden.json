@@ -1,0 +1,106 @@
+{
+  "name": "pull-request",
+  "path": "pull-request.yml",
+  "triggers": {
+    "pull_request": {
+      "Types": [
+        "opened",
+        "synchronize",
+        "reopened"
+      ],
+      "Branches": [
+        "main"
+      ],
+      "BranchesIgnore": null,
+      "Paths": null,
+      "PathsIgnore": null
+    }
+  },
+  "defaults": {
+    "Run": {
+      "Shell": "",
+      "WorkingDirectory": ""
+    }
+  },
+  "jobs": [
+    {
+      "id": "ci",
+      "runs_on": {
+        "Raw": "ubuntu-latest",
+        "Labels": [
+          "ubuntu-latest"
+        ]
+      },
+      "if": {
+        "Raw": "",
+        "Span": {
+          "Path": "pull-request.yml",
+          "Line": 0,
+          "Column": 0,
+          "EndLine": 0,
+          "EndCol": 0
+        }
+      },
+      "defaults": {
+        "Run": {
+          "Shell": "",
+          "WorkingDirectory": ""
+        }
+      },
+      "continue_on_error": false,
+      "timeout_minutes": 0,
+      "steps": [
+        {
+          "ID": "",
+          "Name": "",
+          "Kind": 0,
+          "Uses": {
+            "Owner": "",
+            "Repo": "",
+            "Path": "",
+            "Ref": "",
+            "Local": false
+          },
+          "Run": "echo \"pr\"",
+          "Shell": "",
+          "WorkingDirectory": "",
+          "With": null,
+          "Env": null,
+          "If": {
+            "Raw": "",
+            "Span": {
+              "Path": "pull-request.yml",
+              "Line": 0,
+              "Column": 0,
+              "EndLine": 0,
+              "EndCol": 0
+            }
+          },
+          "ContinueOnError": false,
+          "TimeoutMinutes": 0,
+          "Span": {
+            "Path": "pull-request.yml",
+            "Line": 11,
+            "Column": 9,
+            "EndLine": 11,
+            "EndCol": 23
+          }
+        }
+      ],
+      "span": {
+        "Path": "pull-request.yml",
+        "Line": 8,
+        "Column": 3,
+        "EndLine": 8,
+        "EndCol": 5
+      }
+    }
+  ],
+  "span": {
+    "Path": "pull-request.yml",
+    "Line": 1,
+    "Column": 1,
+    "EndLine": 11,
+    "EndCol": 23
+  }
+}

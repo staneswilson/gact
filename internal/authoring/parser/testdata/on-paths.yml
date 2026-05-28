@@ -1,0 +1,16 @@
+name: on-paths
+on:
+  push:
+    branches:
+      - main
+      - release/*
+    paths:
+      - "src/**"
+      - "go.mod"
+    paths-ignore:
+      - "docs/**"
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "ok"

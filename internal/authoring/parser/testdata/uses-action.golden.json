@@ -1,0 +1,137 @@
+{
+  "name": "uses-action",
+  "path": "uses-action.yml",
+  "triggers": {
+    "push": {
+      "Branches": null,
+      "BranchesIgnore": null,
+      "Tags": null,
+      "TagsIgnore": null,
+      "Paths": null,
+      "PathsIgnore": null
+    }
+  },
+  "defaults": {
+    "Run": {
+      "Shell": "",
+      "WorkingDirectory": ""
+    }
+  },
+  "jobs": [
+    {
+      "id": "build",
+      "runs_on": {
+        "Raw": "ubuntu-latest",
+        "Labels": [
+          "ubuntu-latest"
+        ]
+      },
+      "if": {
+        "Raw": "",
+        "Span": {
+          "Path": "uses-action.yml",
+          "Line": 0,
+          "Column": 0,
+          "EndLine": 0,
+          "EndCol": 0
+        }
+      },
+      "defaults": {
+        "Run": {
+          "Shell": "",
+          "WorkingDirectory": ""
+        }
+      },
+      "continue_on_error": false,
+      "timeout_minutes": 0,
+      "steps": [
+        {
+          "ID": "",
+          "Name": "",
+          "Kind": 1,
+          "Uses": {
+            "Owner": "actions",
+            "Repo": "checkout",
+            "Path": "",
+            "Ref": "v4",
+            "Local": false
+          },
+          "Run": "",
+          "Shell": "",
+          "WorkingDirectory": "",
+          "With": null,
+          "Env": null,
+          "If": {
+            "Raw": "",
+            "Span": {
+              "Path": "uses-action.yml",
+              "Line": 0,
+              "Column": 0,
+              "EndLine": 0,
+              "EndCol": 0
+            }
+          },
+          "ContinueOnError": false,
+          "TimeoutMinutes": 0,
+          "Span": {
+            "Path": "uses-action.yml",
+            "Line": 7,
+            "Column": 9,
+            "EndLine": 7,
+            "EndCol": 34
+          }
+        },
+        {
+          "ID": "",
+          "Name": "",
+          "Kind": 1,
+          "Uses": {
+            "Owner": "",
+            "Repo": "",
+            "Path": "./.github/actions/foo",
+            "Ref": "",
+            "Local": true
+          },
+          "Run": "",
+          "Shell": "",
+          "WorkingDirectory": "",
+          "With": null,
+          "Env": null,
+          "If": {
+            "Raw": "",
+            "Span": {
+              "Path": "uses-action.yml",
+              "Line": 0,
+              "Column": 0,
+              "EndLine": 0,
+              "EndCol": 0
+            }
+          },
+          "ContinueOnError": false,
+          "TimeoutMinutes": 0,
+          "Span": {
+            "Path": "uses-action.yml",
+            "Line": 8,
+            "Column": 9,
+            "EndLine": 8,
+            "EndCol": 36
+          }
+        }
+      ],
+      "span": {
+        "Path": "uses-action.yml",
+        "Line": 4,
+        "Column": 3,
+        "EndLine": 4,
+        "EndCol": 8
+      }
+    }
+  ],
+  "span": {
+    "Path": "uses-action.yml",
+    "Line": 1,
+    "Column": 1,
+    "EndLine": 8,
+    "EndCol": 36
+  }
+}

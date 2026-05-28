@@ -1,0 +1,13 @@
+name: expressions
+on: push
+jobs:
+  guarded:
+    runs-on: ubuntu-latest
+    steps:
+      - name: conditional
+        if: github.event_name == 'push'
+        run: echo "conditional"
+      - name: parametrised
+        uses: actions/setup-node@v4
+        with:
+          node-version: "${{ github.ref }}"

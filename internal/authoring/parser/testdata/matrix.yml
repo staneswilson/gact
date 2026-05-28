@@ -1,0 +1,20 @@
+name: matrix
+on: push
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      max-parallel: 4
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+        node: [18, 20]
+        include:
+          - os: ubuntu-latest
+            node: 22
+            extra: bonus
+        exclude:
+          - os: macos-latest
+            node: 18
+    steps:
+      - run: echo "matrix"

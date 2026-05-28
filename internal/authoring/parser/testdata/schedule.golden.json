@@ -1,0 +1,101 @@
+{
+  "name": "schedule",
+  "path": "schedule.yml",
+  "triggers": {
+    "schedule": [
+      {
+        "Cron": "0 0 * * *"
+      },
+      {
+        "Cron": "30 8 * * 1-5"
+      }
+    ]
+  },
+  "defaults": {
+    "Run": {
+      "Shell": "",
+      "WorkingDirectory": ""
+    }
+  },
+  "jobs": [
+    {
+      "id": "cron",
+      "runs_on": {
+        "Raw": "ubuntu-latest",
+        "Labels": [
+          "ubuntu-latest"
+        ]
+      },
+      "if": {
+        "Raw": "",
+        "Span": {
+          "Path": "schedule.yml",
+          "Line": 0,
+          "Column": 0,
+          "EndLine": 0,
+          "EndCol": 0
+        }
+      },
+      "defaults": {
+        "Run": {
+          "Shell": "",
+          "WorkingDirectory": ""
+        }
+      },
+      "continue_on_error": false,
+      "timeout_minutes": 0,
+      "steps": [
+        {
+          "ID": "",
+          "Name": "",
+          "Kind": 0,
+          "Uses": {
+            "Owner": "",
+            "Repo": "",
+            "Path": "",
+            "Ref": "",
+            "Local": false
+          },
+          "Run": "echo \"cron\"",
+          "Shell": "",
+          "WorkingDirectory": "",
+          "With": null,
+          "Env": null,
+          "If": {
+            "Raw": "",
+            "Span": {
+              "Path": "schedule.yml",
+              "Line": 0,
+              "Column": 0,
+              "EndLine": 0,
+              "EndCol": 0
+            }
+          },
+          "ContinueOnError": false,
+          "TimeoutMinutes": 0,
+          "Span": {
+            "Path": "schedule.yml",
+            "Line": 10,
+            "Column": 9,
+            "EndLine": 10,
+            "EndCol": 25
+          }
+        }
+      ],
+      "span": {
+        "Path": "schedule.yml",
+        "Line": 7,
+        "Column": 3,
+        "EndLine": 7,
+        "EndCol": 7
+      }
+    }
+  ],
+  "span": {
+    "Path": "schedule.yml",
+    "Line": 1,
+    "Column": 1,
+    "EndLine": 10,
+    "EndCol": 25
+  }
+}

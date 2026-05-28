@@ -1,0 +1,109 @@
+{
+  "name": "on-paths",
+  "path": "on-paths.yml",
+  "triggers": {
+    "push": {
+      "Branches": [
+        "main",
+        "release/*"
+      ],
+      "BranchesIgnore": null,
+      "Tags": null,
+      "TagsIgnore": null,
+      "Paths": [
+        "src/**",
+        "go.mod"
+      ],
+      "PathsIgnore": [
+        "docs/**"
+      ]
+    }
+  },
+  "defaults": {
+    "Run": {
+      "Shell": "",
+      "WorkingDirectory": ""
+    }
+  },
+  "jobs": [
+    {
+      "id": "build",
+      "runs_on": {
+        "Raw": "ubuntu-latest",
+        "Labels": [
+          "ubuntu-latest"
+        ]
+      },
+      "if": {
+        "Raw": "",
+        "Span": {
+          "Path": "on-paths.yml",
+          "Line": 0,
+          "Column": 0,
+          "EndLine": 0,
+          "EndCol": 0
+        }
+      },
+      "defaults": {
+        "Run": {
+          "Shell": "",
+          "WorkingDirectory": ""
+        }
+      },
+      "continue_on_error": false,
+      "timeout_minutes": 0,
+      "steps": [
+        {
+          "ID": "",
+          "Name": "",
+          "Kind": 0,
+          "Uses": {
+            "Owner": "",
+            "Repo": "",
+            "Path": "",
+            "Ref": "",
+            "Local": false
+          },
+          "Run": "echo \"ok\"",
+          "Shell": "",
+          "WorkingDirectory": "",
+          "With": null,
+          "Env": null,
+          "If": {
+            "Raw": "",
+            "Span": {
+              "Path": "on-paths.yml",
+              "Line": 0,
+              "Column": 0,
+              "EndLine": 0,
+              "EndCol": 0
+            }
+          },
+          "ContinueOnError": false,
+          "TimeoutMinutes": 0,
+          "Span": {
+            "Path": "on-paths.yml",
+            "Line": 16,
+            "Column": 9,
+            "EndLine": 16,
+            "EndCol": 23
+          }
+        }
+      ],
+      "span": {
+        "Path": "on-paths.yml",
+        "Line": 13,
+        "Column": 3,
+        "EndLine": 13,
+        "EndCol": 8
+      }
+    }
+  ],
+  "span": {
+    "Path": "on-paths.yml",
+    "Line": 1,
+    "Column": 1,
+    "EndLine": 16,
+    "EndCol": 23
+  }
+}

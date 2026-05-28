@@ -1,0 +1,19 @@
+name: multi-job
+on:
+  push:
+    branches: [main]
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "lint"
+  test:
+    runs-on: ubuntu-latest
+    needs: lint
+    steps:
+      - run: echo "test"
+  build:
+    runs-on: ubuntu-latest
+    needs: [lint, test]
+    steps:
+      - run: echo "build"

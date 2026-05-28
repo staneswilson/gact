@@ -1,0 +1,254 @@
+{
+  "name": "multi-job",
+  "path": "multi-job.yml",
+  "triggers": {
+    "push": {
+      "Branches": [
+        "main"
+      ],
+      "BranchesIgnore": null,
+      "Tags": null,
+      "TagsIgnore": null,
+      "Paths": null,
+      "PathsIgnore": null
+    }
+  },
+  "defaults": {
+    "Run": {
+      "Shell": "",
+      "WorkingDirectory": ""
+    }
+  },
+  "jobs": [
+    {
+      "id": "build",
+      "runs_on": {
+        "Raw": "ubuntu-latest",
+        "Labels": [
+          "ubuntu-latest"
+        ]
+      },
+      "needs": [
+        "lint",
+        "test"
+      ],
+      "if": {
+        "Raw": "",
+        "Span": {
+          "Path": "multi-job.yml",
+          "Line": 0,
+          "Column": 0,
+          "EndLine": 0,
+          "EndCol": 0
+        }
+      },
+      "defaults": {
+        "Run": {
+          "Shell": "",
+          "WorkingDirectory": ""
+        }
+      },
+      "continue_on_error": false,
+      "timeout_minutes": 0,
+      "steps": [
+        {
+          "ID": "",
+          "Name": "",
+          "Kind": 0,
+          "Uses": {
+            "Owner": "",
+            "Repo": "",
+            "Path": "",
+            "Ref": "",
+            "Local": false
+          },
+          "Run": "echo \"build\"",
+          "Shell": "",
+          "WorkingDirectory": "",
+          "With": null,
+          "Env": null,
+          "If": {
+            "Raw": "",
+            "Span": {
+              "Path": "multi-job.yml",
+              "Line": 0,
+              "Column": 0,
+              "EndLine": 0,
+              "EndCol": 0
+            }
+          },
+          "ContinueOnError": false,
+          "TimeoutMinutes": 0,
+          "Span": {
+            "Path": "multi-job.yml",
+            "Line": 19,
+            "Column": 9,
+            "EndLine": 19,
+            "EndCol": 26
+          }
+        }
+      ],
+      "span": {
+        "Path": "multi-job.yml",
+        "Line": 15,
+        "Column": 3,
+        "EndLine": 15,
+        "EndCol": 8
+      }
+    },
+    {
+      "id": "lint",
+      "runs_on": {
+        "Raw": "ubuntu-latest",
+        "Labels": [
+          "ubuntu-latest"
+        ]
+      },
+      "if": {
+        "Raw": "",
+        "Span": {
+          "Path": "multi-job.yml",
+          "Line": 0,
+          "Column": 0,
+          "EndLine": 0,
+          "EndCol": 0
+        }
+      },
+      "defaults": {
+        "Run": {
+          "Shell": "",
+          "WorkingDirectory": ""
+        }
+      },
+      "continue_on_error": false,
+      "timeout_minutes": 0,
+      "steps": [
+        {
+          "ID": "",
+          "Name": "",
+          "Kind": 0,
+          "Uses": {
+            "Owner": "",
+            "Repo": "",
+            "Path": "",
+            "Ref": "",
+            "Local": false
+          },
+          "Run": "echo \"lint\"",
+          "Shell": "",
+          "WorkingDirectory": "",
+          "With": null,
+          "Env": null,
+          "If": {
+            "Raw": "",
+            "Span": {
+              "Path": "multi-job.yml",
+              "Line": 0,
+              "Column": 0,
+              "EndLine": 0,
+              "EndCol": 0
+            }
+          },
+          "ContinueOnError": false,
+          "TimeoutMinutes": 0,
+          "Span": {
+            "Path": "multi-job.yml",
+            "Line": 9,
+            "Column": 9,
+            "EndLine": 9,
+            "EndCol": 25
+          }
+        }
+      ],
+      "span": {
+        "Path": "multi-job.yml",
+        "Line": 6,
+        "Column": 3,
+        "EndLine": 6,
+        "EndCol": 7
+      }
+    },
+    {
+      "id": "test",
+      "runs_on": {
+        "Raw": "ubuntu-latest",
+        "Labels": [
+          "ubuntu-latest"
+        ]
+      },
+      "needs": [
+        "lint"
+      ],
+      "if": {
+        "Raw": "",
+        "Span": {
+          "Path": "multi-job.yml",
+          "Line": 0,
+          "Column": 0,
+          "EndLine": 0,
+          "EndCol": 0
+        }
+      },
+      "defaults": {
+        "Run": {
+          "Shell": "",
+          "WorkingDirectory": ""
+        }
+      },
+      "continue_on_error": false,
+      "timeout_minutes": 0,
+      "steps": [
+        {
+          "ID": "",
+          "Name": "",
+          "Kind": 0,
+          "Uses": {
+            "Owner": "",
+            "Repo": "",
+            "Path": "",
+            "Ref": "",
+            "Local": false
+          },
+          "Run": "echo \"test\"",
+          "Shell": "",
+          "WorkingDirectory": "",
+          "With": null,
+          "Env": null,
+          "If": {
+            "Raw": "",
+            "Span": {
+              "Path": "multi-job.yml",
+              "Line": 0,
+              "Column": 0,
+              "EndLine": 0,
+              "EndCol": 0
+            }
+          },
+          "ContinueOnError": false,
+          "TimeoutMinutes": 0,
+          "Span": {
+            "Path": "multi-job.yml",
+            "Line": 14,
+            "Column": 9,
+            "EndLine": 14,
+            "EndCol": 25
+          }
+        }
+      ],
+      "span": {
+        "Path": "multi-job.yml",
+        "Line": 10,
+        "Column": 3,
+        "EndLine": 10,
+        "EndCol": 7
+      }
+    }
+  ],
+  "span": {
+    "Path": "multi-job.yml",
+    "Line": 1,
+    "Column": 1,
+    "EndLine": 19,
+    "EndCol": 26
+  }
+}

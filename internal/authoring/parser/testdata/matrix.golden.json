@@ -1,0 +1,128 @@
+{
+  "name": "matrix",
+  "path": "matrix.yml",
+  "triggers": {
+    "push": {
+      "Branches": null,
+      "BranchesIgnore": null,
+      "Tags": null,
+      "TagsIgnore": null,
+      "Paths": null,
+      "PathsIgnore": null
+    }
+  },
+  "defaults": {
+    "Run": {
+      "Shell": "",
+      "WorkingDirectory": ""
+    }
+  },
+  "jobs": [
+    {
+      "id": "test",
+      "runs_on": {
+        "Raw": "ubuntu-latest",
+        "Labels": [
+          "ubuntu-latest"
+        ]
+      },
+      "if": {
+        "Raw": "",
+        "Span": {
+          "Path": "matrix.yml",
+          "Line": 0,
+          "Column": 0,
+          "EndLine": 0,
+          "EndCol": 0
+        }
+      },
+      "matrix": {
+        "Include": [
+          {
+            "extra": "bonus",
+            "node": 22,
+            "os": "ubuntu-latest"
+          }
+        ],
+        "Exclude": [
+          {
+            "node": 18,
+            "os": "macos-latest"
+          }
+        ],
+        "Axes": {
+          "node": [
+            18,
+            20
+          ],
+          "os": [
+            "ubuntu-latest",
+            "macos-latest"
+          ]
+        },
+        "MaxParallel": 4,
+        "FailFast": false
+      },
+      "defaults": {
+        "Run": {
+          "Shell": "",
+          "WorkingDirectory": ""
+        }
+      },
+      "continue_on_error": false,
+      "timeout_minutes": 0,
+      "steps": [
+        {
+          "ID": "",
+          "Name": "",
+          "Kind": 0,
+          "Uses": {
+            "Owner": "",
+            "Repo": "",
+            "Path": "",
+            "Ref": "",
+            "Local": false
+          },
+          "Run": "echo \"matrix\"",
+          "Shell": "",
+          "WorkingDirectory": "",
+          "With": null,
+          "Env": null,
+          "If": {
+            "Raw": "",
+            "Span": {
+              "Path": "matrix.yml",
+              "Line": 0,
+              "Column": 0,
+              "EndLine": 0,
+              "EndCol": 0
+            }
+          },
+          "ContinueOnError": false,
+          "TimeoutMinutes": 0,
+          "Span": {
+            "Path": "matrix.yml",
+            "Line": 20,
+            "Column": 9,
+            "EndLine": 20,
+            "EndCol": 27
+          }
+        }
+      ],
+      "span": {
+        "Path": "matrix.yml",
+        "Line": 4,
+        "Column": 3,
+        "EndLine": 4,
+        "EndCol": 7
+      }
+    }
+  ],
+  "span": {
+    "Path": "matrix.yml",
+    "Line": 1,
+    "Column": 1,
+    "EndLine": 20,
+    "EndCol": 27
+  }
+}

@@ -1,0 +1,148 @@
+{
+  "name": "expressions",
+  "path": "expressions.yml",
+  "triggers": {
+    "push": {
+      "Branches": null,
+      "BranchesIgnore": null,
+      "Tags": null,
+      "TagsIgnore": null,
+      "Paths": null,
+      "PathsIgnore": null
+    }
+  },
+  "defaults": {
+    "Run": {
+      "Shell": "",
+      "WorkingDirectory": ""
+    }
+  },
+  "jobs": [
+    {
+      "id": "guarded",
+      "runs_on": {
+        "Raw": "ubuntu-latest",
+        "Labels": [
+          "ubuntu-latest"
+        ]
+      },
+      "if": {
+        "Raw": "",
+        "Span": {
+          "Path": "expressions.yml",
+          "Line": 0,
+          "Column": 0,
+          "EndLine": 0,
+          "EndCol": 0
+        }
+      },
+      "defaults": {
+        "Run": {
+          "Shell": "",
+          "WorkingDirectory": ""
+        }
+      },
+      "continue_on_error": false,
+      "timeout_minutes": 0,
+      "steps": [
+        {
+          "ID": "",
+          "Name": "conditional",
+          "Kind": 0,
+          "Uses": {
+            "Owner": "",
+            "Repo": "",
+            "Path": "",
+            "Ref": "",
+            "Local": false
+          },
+          "Run": "echo \"conditional\"",
+          "Shell": "",
+          "WorkingDirectory": "",
+          "With": null,
+          "Env": null,
+          "If": {
+            "Raw": "github.event_name == 'push'",
+            "Span": {
+              "Path": "expressions.yml",
+              "Line": 8,
+              "Column": 13,
+              "EndLine": 8,
+              "EndCol": 40
+            }
+          },
+          "ContinueOnError": false,
+          "TimeoutMinutes": 0,
+          "Span": {
+            "Path": "expressions.yml",
+            "Line": 7,
+            "Column": 9,
+            "EndLine": 9,
+            "EndCol": 32
+          }
+        },
+        {
+          "ID": "",
+          "Name": "parametrised",
+          "Kind": 1,
+          "Uses": {
+            "Owner": "actions",
+            "Repo": "setup-node",
+            "Path": "",
+            "Ref": "v4",
+            "Local": false
+          },
+          "Run": "",
+          "Shell": "",
+          "WorkingDirectory": "",
+          "With": {
+            "node-version": {
+              "Raw": "${{ github.ref }}",
+              "Span": {
+                "Path": "expressions.yml",
+                "Line": 13,
+                "Column": 25,
+                "EndLine": 13,
+                "EndCol": 42
+              }
+            }
+          },
+          "Env": null,
+          "If": {
+            "Raw": "",
+            "Span": {
+              "Path": "expressions.yml",
+              "Line": 0,
+              "Column": 0,
+              "EndLine": 0,
+              "EndCol": 0
+            }
+          },
+          "ContinueOnError": false,
+          "TimeoutMinutes": 0,
+          "Span": {
+            "Path": "expressions.yml",
+            "Line": 10,
+            "Column": 9,
+            "EndLine": 13,
+            "EndCol": 42
+          }
+        }
+      ],
+      "span": {
+        "Path": "expressions.yml",
+        "Line": 4,
+        "Column": 3,
+        "EndLine": 4,
+        "EndCol": 10
+      }
+    }
+  ],
+  "span": {
+    "Path": "expressions.yml",
+    "Line": 1,
+    "Column": 1,
+    "EndLine": 13,
+    "EndCol": 42
+  }
+}
