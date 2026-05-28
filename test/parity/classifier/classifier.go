@@ -142,8 +142,6 @@ type Rule struct {
 // The slice is intentionally exported and mutable. Future work
 // (Task 3.9) is expected to append workflow-specific rules; consumers
 // are expected to do so at init() time before the first Classify call.
-//
-// Warn rules are added in a follow-up commit alongside their fixtures.
 var Rules = []Rule{
 	// Block rules — outcome-changing divergence.
 	{Name: "exit-code-mismatch", Category: CategoryBlock, Match: ruleExitCodeMismatch},
@@ -159,6 +157,10 @@ var Rules = []Rule{
 	{Name: "ansi-escape", Category: CategoryNoise, Match: ruleANSIEscape},
 	{Name: "line-ending", Category: CategoryNoise, Match: ruleLineEnding},
 	{Name: "env-order", Category: CategoryNoise, Match: ruleEnvOrder},
+
+	// Warn rules — stdout drift with matching exit codes. Must be
+	// last because ruleStdoutTextDrift claims any unequal payload.
+	{Name: "stdout-text-drift", Category: CategoryWarn, Match: ruleStdoutTextDrift},
 }
 
 // Classify walks the Rules slice in order and returns the first rule
@@ -436,4 +438,31 @@ func splitEnvTokens(s string) []string {
 		}
 	}
 	return out
+}
+
+// ----------------------------------------------------------------------
+// Warn rules
+// ----------------------------------------------------------------------
+
+// ruleStdoutTextDrift is the catch-all warn rule. By the time we reach
+// it, no block rule has fired (so exit codes match, no verdict flip,
+// no skip flip, no step-output value mismatch on a non-noise key) and
+// no noise rule has fired (so the divergence is not a known non-
+// semantic source). The lines are different, which means stdout text
+// drifted. Emit a Warn so a human can decide.
+//
+// Note this matches any two distinct strings where at least one side
+// is non-empty, so it must be the LAST rule. The Rules slice ordering
+// enforces that. If a future rule needs to claim a specific drift
+// pattern (e.g. a known cosmetic banner change) it should be inserted
+// before this rule in the Rules slice.
+//
+// Equal payloads return false so the harness's default-warn fallback
+// can flag "this diff record should never have been emitted" as a
+// harness bug instead of silently claiming it.
+func ruleStdoutTextDrift(d Diff) bool {
+	if d.Local == d.Remote {
+		return false
+	}
+	return d.Local != "" || d.Remote != ""
 }
