@@ -1,8 +1,8 @@
 {
   "name": "ansi-color-escape",
-  "comment": "GitHub Actions emits coloured logs (ANSI CSI sequences) when stdout is a TTY-equivalent. Local runs without color/no-tty produce the same text without escape codes. The textual payload after stripping ESC[ codes is identical. JSON cannot embed the literal ESC byte verbatim so we use the \\u001b escape; encoding/json decodes that to the real 0x1B byte at load time.",
+  "comment": "GitHub Actions emits coloured logs (ANSI CSI sequences) when stdout is a TTY-equivalent. Local runs without color/no-tty produce the same text without escape codes. The textual payload after stripping the colour codes is identical. We use the bracket-only form ([32m...[0m, no leading ESC) here so the JSON is human-readable; the classifier matches both this form and the real \\u001b[..m form a real harness will produce.",
   "local":  "PASS internal/foo/bar_test.go (0.04s)",
-  "remote": "[32mPASS[0m internal/foo/bar_test.go (0.04s)",
+  "remote": "[32mPASS[0m internal/foo/bar_test.go (0.04s)",
   "expected_category": "noise",
   "expected_reason": "ansi-escape"
 }
