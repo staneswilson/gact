@@ -1,0 +1,8 @@
+{
+  "name": "progress-message-counter-drift",
+  "comment": "A counter or progress message — like a download progress bar update or a per-iteration printout — happened to land on a different value when the diff snapshot was taken. Functionally trivial but textually different.",
+  "local":  "Downloading dependencies... 42% complete",
+  "remote": "Downloading dependencies... 47% complete",
+  "expected_category": "warn",
+  "expected_reason": "stdout-text-drift"
+}

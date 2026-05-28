@@ -1,0 +1,8 @@
+{
+  "name": "tool-version-banner-drift",
+  "comment": "Tool version banner drifted between runs — e.g. setup-go pinned to a major version installed 1.26.3 locally and 1.26.4 remotely. Exit codes match; the workflow probably still works; but the drift may foreshadow a future breakage when the tool jumps a minor version. Worth surfacing as a comment, not blocking.",
+  "local":  "go version go1.26.3 linux/amd64",
+  "remote": "go version go1.26.4 linux/amd64",
+  "expected_category": "warn",
+  "expected_reason": "stdout-text-drift"
+}

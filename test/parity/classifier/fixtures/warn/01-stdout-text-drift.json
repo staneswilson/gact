@@ -1,0 +1,8 @@
+{
+  "name": "stdout-text-drift",
+  "comment": "The classic warn case: the same step produced different stdout text but both exited 0. The drift is real (something behaved differently) but not necessarily semantic — the test may have logged a different progress message, or the tool version changed cosmetic output between runs. Surface as a PR comment so a human can decide.",
+  "local":  "warning: 3 unused imports in pkg/foo",
+  "remote": "warning: 5 unused imports in pkg/foo",
+  "expected_category": "warn",
+  "expected_reason": "stdout-text-drift"
+}
